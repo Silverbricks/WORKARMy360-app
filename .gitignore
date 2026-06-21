@@ -12,6 +12,9 @@ out/
 # turbo
 .turbo/
 
+# vercel
+.vercel/
+
 # env
 .env
 .env.local
