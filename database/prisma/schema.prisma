@@ -1,0 +1,227 @@
+// WorkArmy 2.0 — neutral core schema (Sprint 1).
+// Principle 2: ONE persons, ONE organisations; participant type is an ATTRIBUTE.
+// Principle 4: profile completeness (a flag on persons) is kept separate from
+// compliance (credentials/verifications — added in a later sprint).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// --- enums -----------------------------------------------------------------
+
+enum AccountType {
+  JOB_SEEKER
+  EMPLOYER
+  FARM
+  CONTRACTOR
+  LABOUR_HIRE
+  RECRUITMENT_AGENCY
+}
+
+enum AuthIdentityProvider {
+  LOCAL
+  GOOGLE // reserved; Sprint 1 ships LOCAL only
+}
+
+enum OtpPurpose {
+  EMAIL_VERIFICATION // LOGIN_2FA etc. added later
+}
+
+enum OtpChannel {
+  EMAIL // SMS added later
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum AuditAction {
+  USER_REGISTERED
+  EMAIL_VERIFIED
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  TOKEN_REFRESHED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  ACCOUNT_LOCKED
+  OTP_SENT
+  OTP_FAILED
+}
+
+// --- WA ID -----------------------------------------------------------------
+
+/// Single global, atomic counter. One monotonic WA###### sequence shared by
+/// persons + organisations so every member id is globally unique and never
+/// recycled. Incremented via INSERT ... ON CONFLICT DO UPDATE ... RETURNING.
+model WaIdCounter {
+  id        String   @id // always "GLOBAL"
+  lastValue BigInt   @default(0) @map("last_value")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("wa_id_counters")
+}
+
+// --- identity & auth (users = AUTH ONLY) -----------------------------------
+
+model User {
+  id                  String     @id @default(uuid()) @db.Uuid
+  email               String     @unique
+  passwordHash        String?    @map("password_hash") // null until set (OAuth-ready)
+  emailVerified       Boolean    @default(false) @map("email_verified")
+  status              UserStatus @default(PENDING)
+  failedLoginAttempts Int        @default(0) @map("failed_login_attempts") @db.SmallInt
+  lockedUntil         DateTime?  @map("locked_until")
+  lastLoginAt         DateTime?  @map("last_login_at")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+
+  person         Person?
+  identities     AuthIdentity[]
+  sessions       Session[]
+  otpCodes       OtpCode[]
+  passwordResets PasswordReset[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model AuthIdentity {
+  id             String               @id @default(uuid()) @db.Uuid
+  userId         String               @map("user_id") @db.Uuid
+  provider       AuthIdentityProvider
+  providerUserId String               @map("provider_user_id") // email for LOCAL, sub for GOOGLE
+  createdAt      DateTime             @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("auth_identities")
+}
+
+/// Refresh-token store. The raw token lives only in the httpOnly cookie; we keep
+/// its sha256 hash. Rotated on every /auth/refresh.
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  userAgent        String?   @map("user_agent")
+  ipAddress        String?   @map("ip_address")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// --- the person (human) — identity/profile lives here ----------------------
+
+model Person {
+  id              String      @id @default(uuid()) @db.Uuid
+  userId          String      @unique @map("user_id") @db.Uuid
+  waId            String      @unique @map("wa_id") // immutable, e.g. WA100001
+  accountType     AccountType @map("account_type") // attribute, not a table
+  firstName       String?     @map("first_name")
+  lastName        String?     @map("last_name")
+  mobile          String? // AU normalised, e.g. 0412345678
+  profileComplete Boolean     @default(false) @map("profile_complete") // != compliance
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgMemberships OrgMember[]
+
+  @@map("persons")
+}
+
+// --- organisations (neutral stub for the provider flow, Sprint 2) ----------
+
+model Organisation {
+  id          String      @id @default(uuid()) @db.Uuid
+  waId        String      @unique @map("wa_id")
+  accountType AccountType @map("account_type") // EMPLOYER / FARM / CONTRACTOR / ...
+  name        String
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  members OrgMember[]
+
+  @@map("organisations")
+}
+
+model OrgMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  personId  String   @map("person_id") @db.Uuid
+  role      String   @default("owner") // neutral string; RBAC enum deferred
+  createdAt DateTime @default(now()) @map("created_at")
+
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  person       Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, personId])
+  @@map("org_members")
+}
+
+// --- OTP & password reset (hashed, attempt-capped) -------------------------
+
+model OtpCode {
+  id         String     @id @default(uuid()) @db.Uuid
+  userId     String     @map("user_id") @db.Uuid
+  purpose    OtpPurpose @default(EMAIL_VERIFICATION)
+  channel    OtpChannel @default(EMAIL)
+  codeHash   String     @map("code_hash") // sha256, never plaintext
+  attempts   Int        @default(0)
+  expiresAt  DateTime   @map("expires_at")
+  consumedAt DateTime?  @map("consumed_at")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("otp_codes")
+}
+
+model PasswordReset {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") // sha256, single-use
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_resets")
+}
+
+// --- audit trail (compliance-grade, separate from profile) -----------------
+
+model AuditLog {
+  id        String      @id @default(uuid()) @db.Uuid
+  userId    String?     @map("user_id") @db.Uuid
+  action    AuditAction
+  ipAddress String?     @map("ip_address")
+  userAgent String?     @map("user_agent")
+  metadata  Json?
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@map("audit_logs")
+}

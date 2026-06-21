@@ -1,0 +1,22 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "database"
+
+allowBuilds:
+  '@nestjs/core': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true
+  sharp: true
+
+# Allow postinstall build scripts only for these trusted deps (pnpm 10+ blocks
+# them by default). Prisma generates its client/engines; esbuild + sharp fetch
+# platform binaries used by tsx/vitest and Next.js.
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - prisma
+  - esbuild
+  - sharp
