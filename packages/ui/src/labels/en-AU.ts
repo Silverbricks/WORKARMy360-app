@@ -85,6 +85,30 @@ export const enAU = {
   'dashboard.findWork.cta': 'Find work',
   'dashboard.logout': 'Log out',
 
+  // Dashboard navigation
+  'dashboard.nav.home': 'Home',
+  'dashboard.nav.profile': 'My Profile',
+  'dashboard.nav.qualifications': 'Qualifications & Compliance',
+  'dashboard.nav.resume': 'Resume Centre',
+  'dashboard.nav.preferences': 'Job Preferences',
+  'dashboard.nav.jobs': 'Jobs & Applications',
+  'dashboard.nav.workerId': 'Digital Worker ID',
+  'dashboard.nav.work': 'Work & Earnings',
+  'dashboard.nav.community': 'Community & Development',
+  'dashboard.nav.support': 'Support Centre',
+  'dashboard.nav.services': 'Workforce Services',
+
+  // Dashboard home widgets
+  'dashboard.widget.profileCompletion': 'Profile completion',
+  'dashboard.widget.verification': 'Verification status',
+  'dashboard.widget.employment': 'Employment overview',
+  'dashboard.widget.earnings': 'Earnings summary',
+  'dashboard.widget.quickActions': 'Quick actions',
+  'dashboard.widget.membership': 'Membership',
+  'dashboard.membership.free': 'Free',
+  'dashboard.verification.notStarted': 'Not started',
+  'dashboard.planned': 'Planned',
+
   // Common
   'common.loading': 'Loading…',
   'common.error.generic': 'Something went wrong. Please try again.',
