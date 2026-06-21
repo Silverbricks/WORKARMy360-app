@@ -15,10 +15,10 @@ async function bootstrap() {
   app.enableCors({ origin: env.CORS_ORIGINS, credentials: true });
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  await app.listen(env.API_PORT);
-  new Logger('Bootstrap').log(
-    `backend-api ready on http://localhost:${env.API_PORT}/${env.API_GLOBAL_PREFIX}`,
-  );
+  // Railway / Cloud Run inject PORT; fall back to the configured API_PORT locally.
+  const port = Number(process.env.PORT) || env.API_PORT;
+  await app.listen(port, '0.0.0.0');
+  new Logger('Bootstrap').log(`backend-api ready on :${port}/${env.API_GLOBAL_PREFIX}`);
 }
 
 void bootstrap();

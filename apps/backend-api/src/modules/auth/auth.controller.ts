@@ -15,7 +15,7 @@ import type {
   RegisterResponse,
   ResendOtpResponse,
 } from '@workarmy/types';
-import type { Request, Response } from 'express';
+import type { CookieOptions, Request, Response } from 'express';
 import { env, REFRESH_COOKIE_NAME } from '../../config/env';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
@@ -39,25 +39,24 @@ export class AuthController {
     private readonly turnstile: TurnstileService,
   ) {}
 
-  private setRefreshCookie(res: Response, refresh: IssuedRefresh): void {
-    res.cookie(REFRESH_COOKIE_NAME, refresh.token, {
+  private refreshCookieOptions(expires?: Date): CookieOptions {
+    const options: CookieOptions = {
       httpOnly: true,
       secure: env.COOKIE_SECURE,
-      sameSite: 'lax',
-      domain: env.COOKIE_DOMAIN,
+      sameSite: env.COOKIE_SAMESITE,
       path: '/',
-      expires: refresh.expiresAt,
-    });
+    };
+    if (env.COOKIE_DOMAIN) options.domain = env.COOKIE_DOMAIN;
+    if (expires) options.expires = expires;
+    return options;
+  }
+
+  private setRefreshCookie(res: Response, refresh: IssuedRefresh): void {
+    res.cookie(REFRESH_COOKIE_NAME, refresh.token, this.refreshCookieOptions(refresh.expiresAt));
   }
 
   private clearRefreshCookie(res: Response): void {
-    res.clearCookie(REFRESH_COOKIE_NAME, {
-      httpOnly: true,
-      secure: env.COOKIE_SECURE,
-      sameSite: 'lax',
-      domain: env.COOKIE_DOMAIN,
-      path: '/',
-    });
+    res.clearCookie(REFRESH_COOKIE_NAME, this.refreshCookieOptions());
   }
 
   @Public()

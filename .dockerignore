@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/.vercel
+.git
+.github
+.husky
+*.log
+**/.env
+.claude
+docs

@@ -29,8 +29,12 @@ const EnvSchema = z.object({
     .string()
     .default('http://localhost:3000')
     .transform((s) => s.split(',').map((x) => x.trim()).filter(Boolean)),
-  COOKIE_DOMAIN: z.string().default('localhost'),
+  // Empty domain => host-only cookie (correct for cross-site prod, e.g. a
+  // Railway API domain + a Vercel frontend). Set a domain only for shared roots.
+  COOKIE_DOMAIN: z.string().default(''),
   COOKIE_SECURE: boolFromString.default('false'),
+  // 'none' is required for cross-site cookies (and must be paired with Secure).
+  COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
 
   /** Base URL of the Users app — used to build the password-reset link. */
   APP_USERS_URL: z.string().default('http://localhost:3000'),
