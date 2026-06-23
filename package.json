@@ -5,7 +5,7 @@
   "description": "WorkArmy 2.0 — Australian workforce platform (clean rebuild)",
   "packageManager": "pnpm@11.5.0",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "build": "turbo run build",

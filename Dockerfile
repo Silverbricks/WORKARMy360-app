@@ -2,7 +2,7 @@
 # WorkArmy 2.0 backend (NestJS) — builds the pnpm/turbo monorepo and runs the API.
 # Used by Railway (Dockerfile builder) and works on any container host.
 
-FROM node:20-slim
+FROM node:22-slim
 
 # OpenSSL + CA certs are required by the Prisma query engine.
 RUN apt-get update \
