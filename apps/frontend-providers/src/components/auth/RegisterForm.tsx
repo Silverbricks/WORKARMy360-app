@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, Button, Field, Input, PasswordInput } from '@workarmy/ui';
 import { PROVIDER_ACCOUNT_TYPES, type AccountType } from '@workarmy/types';
 import { RegisterSchema } from '@workarmy/validation';
+import { WorkArmyApiError } from '@workarmy/sdk';
 import { api } from '@/lib/api';
 import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '@/lib/form';
 
@@ -55,6 +56,11 @@ export function RegisterForm() {
       await api.auth.register(parsed.data);
       router.push(`/verify?email=${encodeURIComponent(parsed.data.email)}`);
     } catch (err) {
+      // An unverified account already exists — a fresh code was just sent; finish verifying.
+      if (err instanceof WorkArmyApiError && err.code === 'EMAIL_NOT_VERIFIED') {
+        router.push(`/verify?email=${encodeURIComponent(parsed.data.email)}`);
+        return;
+      }
       setErrors(apiFieldErrors(err));
       setFormError(errorMessage(err));
     } finally {

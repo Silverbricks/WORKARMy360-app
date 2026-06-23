@@ -61,7 +61,20 @@ export class AuthService {
   async register(dto: RegisterInput, ctx: RequestContext) {
     const existing = await this.users.findByEmail(dto.email);
     if (existing) {
-      throw ApiException.conflict('EMAIL_TAKEN', 'An account with this email already exists.');
+      // Registered but never verified → resend a fresh code and send them to the
+      // verify screen instead of a dead-end error.
+      if (!existing.emailVerified) {
+        const otpExpiresAt = await this.otp.issue(existing);
+        await this.audit.record('OTP_SENT', { userId: existing.id, ip: ctx.ip });
+        throw ApiException.conflict(
+          'EMAIL_NOT_VERIFIED',
+          'This email is already registered but not verified — we’ve sent you a fresh code.',
+        );
+      }
+      throw ApiException.conflict(
+        'EMAIL_TAKEN',
+        'An account with this email already exists. Please log in.',
+      );
     }
 
     const passwordHash = await hashPassword(dto.password);

@@ -4,7 +4,7 @@ import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, Button, Field, Input, PasswordInput, t } from '@workarmy/ui';
 import { passwordStrength, RegisterSchema } from '@workarmy/validation';
-import { api } from '@/lib/api';
+import { api, WorkArmyApiError } from '@/lib/api';
 import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '@/lib/form';
 
 const STRENGTH_LABELS = ['Weak', 'Fair', 'Good', 'Strong'];
@@ -59,6 +59,11 @@ export function RegisterForm() {
       await api.auth.register(parsed.data);
       router.push(`/verify?email=${encodeURIComponent(parsed.data.email)}`);
     } catch (err) {
+      // An unverified account already exists — a fresh code was just sent; finish verifying.
+      if (err instanceof WorkArmyApiError && err.code === 'EMAIL_NOT_VERIFIED') {
+        router.push(`/verify?email=${encodeURIComponent(parsed.data.email)}`);
+        return;
+      }
       setErrors(apiFieldErrors(err));
       setFormError(errorMessage(err));
     } finally {
