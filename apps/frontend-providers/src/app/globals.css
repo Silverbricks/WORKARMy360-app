@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+@source '../../../../packages/ui/src/**/*.{ts,tsx}';
+
+@theme {
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-hanken);
+  --color-charcoal: #1b1f24;
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-line: #e5e7eb;
+  --color-ink: #1e293b;
+}
+
+/* Providers default accent (Employer orange); the dashboard shell overrides
+   --accent per signed-in organisation account type. */
+:root {
+  --accent: #be7327;
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+@keyframes wa-shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
+}
