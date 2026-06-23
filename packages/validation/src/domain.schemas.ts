@@ -34,6 +34,51 @@ export const ContactInputSchema = z.object({
   isSignatory: z.boolean().optional(),
 });
 
+// --- person (Job Seeker profile) -------------------------------------------
+
+const HIRE_STATUSES = ['AVAILABLE_NOW', 'AVAILABLE_SOON', 'OPEN', 'NOT_LOOKING'] as const;
+
+export const PersonProfileUpdateSchema = z.object({
+  // identity (live on the person row)
+  firstName: optionalText(80),
+  lastName: optionalText(80),
+  mobile: optionalText(40),
+  // personal
+  photoUrl: optionalText(500),
+  dateOfBirth: optionalText(10),
+  gender: optionalText(40),
+  nationality: optionalText(80),
+  addressLine: optionalText(200),
+  suburb: optionalText(80),
+  state: optionalText(40),
+  postcode: z.string().trim().max(8).optional(),
+  emergencyName: optionalText(120),
+  emergencyPhone: optionalText(40),
+  // professional
+  headline: optionalText(160),
+  about: optionalText(2000),
+  skills: optionalText(600),
+  industries: optionalText(400),
+  languages: optionalText(200),
+  // availability
+  availability: optionalText(40),
+  availableDays: optionalText(120),
+  availableHours: optionalText(120),
+  // hire-me status
+  hireStatus: z.enum(HIRE_STATUSES).optional().or(z.literal('')),
+});
+
+export const WorkExperienceInputSchema = z.object({
+  employer: z.string().trim().min(1, 'Required').max(160),
+  position: optionalText(120),
+  employmentType: optionalText(40),
+  location: optionalText(160),
+  startDate: optionalText(10),
+  endDate: optionalText(10),
+  current: z.boolean().optional(),
+  summary: optionalText(1000),
+});
+
 // --- jobs ------------------------------------------------------------------
 
 export const JobInputSchema = z.object({
@@ -80,6 +125,8 @@ export const ReviewSchema = z.object({
 
 export type OrgProfileUpdateInput = z.infer<typeof OrgProfileUpdateSchema>;
 export type ContactInputData = z.infer<typeof ContactInputSchema>;
+export type PersonProfileUpdateInput = z.infer<typeof PersonProfileUpdateSchema>;
+export type WorkExperienceInputData = z.infer<typeof WorkExperienceInputSchema>;
 export type JobInputData = z.infer<typeof JobInputSchema>;
 export type JobBrowseQueryData = z.infer<typeof JobBrowseQuerySchema>;
 export type ApplyInputData = z.infer<typeof ApplyInputSchema>;

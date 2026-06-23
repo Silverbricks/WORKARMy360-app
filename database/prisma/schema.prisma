@@ -187,12 +187,71 @@ model Person {
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile        PersonProfile?
+  experiences    WorkExperience[]
   orgMemberships OrgMember[]
   applications   JobApplication[]
   documents      Document[]
   credentials    Credential[]
 
   @@map("persons")
+}
+
+/// Type-specific extension of a person (the Job Seeker profile). Completeness
+/// lives HERE (a UX progress metric); compliance is separate (credentials +
+/// verifications). Dates are stored as ISO "YYYY-MM-DD" strings for simple,
+/// timezone-safe form round-trips (mirrors OrgProfile's all-string approach).
+model PersonProfile {
+  personId       String   @id @map("person_id") @db.Uuid
+  // personal
+  photoUrl       String?  @map("photo_url")
+  dateOfBirth    String?  @map("date_of_birth")
+  gender         String?
+  nationality    String?
+  addressLine    String?  @map("address_line")
+  suburb         String?
+  state          String?
+  postcode       String?
+  emergencyName  String?  @map("emergency_name")
+  emergencyPhone String?  @map("emergency_phone")
+  // professional
+  headline       String? // professional summary / headline
+  about          String?
+  skills         String? // comma-separated for now
+  industries     String?
+  languages      String?
+  // availability
+  availability   String? // full-time / part-time / casual / seasonal / contract
+  availableDays  String?  @map("available_days")
+  availableHours String?  @map("available_hours")
+  // hire-me status
+  hireStatus     String?  @map("hire_status") // AVAILABLE_NOW / AVAILABLE_SOON / OPEN / NOT_LOOKING
+  completeness   Int      @default(0)
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@map("person_profiles")
+}
+
+/// Repeatable employment-history entry for a person (mirrors Contact for orgs).
+model WorkExperience {
+  id             String   @id @default(uuid()) @db.Uuid
+  personId       String   @map("person_id") @db.Uuid
+  employer       String
+  position       String?
+  employmentType String?  @map("employment_type")
+  location       String?
+  startDate      String?  @map("start_date") // ISO YYYY-MM-DD
+  endDate        String?  @map("end_date") // ISO YYYY-MM-DD
+  current        Boolean  @default(false)
+  summary        String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@map("work_experiences")
 }
 
 // --- organisations (neutral stub for the provider flow, Sprint 2) ----------

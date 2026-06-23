@@ -18,7 +18,10 @@ export class UsersService {
       where: { id: userId },
       include: {
         person: {
-          include: { orgMemberships: { include: { organisation: true }, take: 1 } },
+          include: {
+            profile: { select: { completeness: true } },
+            orgMemberships: { include: { organisation: true }, take: 1 },
+          },
         },
       },
     });
@@ -35,6 +38,7 @@ export class UsersService {
             firstName: user.person.firstName,
             lastName: user.person.lastName,
             profileComplete: user.person.profileComplete,
+            profileCompleteness: user.person.profile?.completeness ?? 0,
           }
         : null,
       organisation: membership

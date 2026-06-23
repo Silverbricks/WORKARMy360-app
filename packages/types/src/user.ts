@@ -20,6 +20,8 @@ export interface PersonSummary {
   lastName: string | null;
   /** Profile completeness flag — a UX progress signal, NOT compliance (Principle 4). */
   profileComplete: boolean;
+  /** Profile completeness percentage (0–100), for the dashboard progress widget. */
+  profileCompleteness: number;
 }
 
 export interface MeResponse {

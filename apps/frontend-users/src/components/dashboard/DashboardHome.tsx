@@ -30,7 +30,7 @@ export function DashboardHome() {
   const firstName = person?.firstName ?? '';
   const initials =
     `${person?.firstName?.[0] ?? ''}${person?.lastName?.[0] ?? ''}`.toUpperCase() || 'WA';
-  const completion = person?.profileComplete ? 100 : 15;
+  const completion = person?.profileCompleteness ?? (person?.profileComplete ? 100 : 0);
 
   return (
     <div className="space-y-6">

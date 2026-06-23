@@ -1,5 +1,6 @@
 export * from './http';
 export * from './endpoints/auth';
+export * from './endpoints/persons';
 export * from './endpoints/organisations';
 export * from './endpoints/jobs';
 export * from './endpoints/applications';

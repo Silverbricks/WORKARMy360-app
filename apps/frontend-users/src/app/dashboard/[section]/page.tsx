@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { SectionStub } from '@/components/dashboard/SectionStub';
 import { JobsApplicationsSection } from '@/components/dashboard/JobsApplicationsSection';
+import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { getSection, STUB_SLUGS } from '@/lib/dashboard-sections';
 
 // Only the known sections are valid; anything else 404s. Fully static.
@@ -18,7 +19,8 @@ export default async function DashboardSectionPage({
   const { section } = await params;
   const data = getSection(section);
   if (!data || data.slug === 'home') notFound();
-  // 'jobs' is live (browse + apply + my applications); the rest are shells.
+  // Live sections; the rest are shells.
+  if (data.slug === 'profile') return <ProfileSection />;
   if (data.slug === 'jobs') return <JobsApplicationsSection />;
   return <SectionStub section={data} />;
 }
