@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "description": "WorkArmy 2.0 — Australian workforce platform (clean rebuild)",
-  "packageManager": "pnpm@11.5.0",
+  "packageManager": "pnpm@11.8.0",
   "engines": {
     "node": ">=22.13.0"
   },
