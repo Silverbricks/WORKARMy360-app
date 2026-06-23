@@ -32,6 +32,16 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+/** Build a `?a=1&b=2` query string, skipping empty values. */
+export function toQueryString(params: Record<string, unknown>): string {
+  const usp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') usp.append(key, String(value));
+  }
+  const s = usp.toString();
+  return s ? `?${s}` : '';
+}
+
 function parseJson(text: string): unknown {
   try {
     return JSON.parse(text);

@@ -8,6 +8,8 @@ export interface RegisterRequest {
   /** AU mobile, e.g. 0412 345 678. */
   mobile: string;
   accountType: AccountType;
+  /** Required for provider account types — becomes the Organisation name. */
+  companyName?: string;
   /** Cloudflare Turnstile token; optional when Turnstile is disabled (dev). */
   turnstileToken?: string;
 }

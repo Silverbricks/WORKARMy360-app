@@ -145,6 +145,9 @@ importers:
       '@types/node':
         specifier: ^20.17.10
         version: 20.19.43
+      '@workarmy/auth':
+        specifier: workspace:*
+        version: link:../packages/auth
       prisma:
         specifier: ^6.1.0
         version: 6.19.3(typescript@5.9.3)

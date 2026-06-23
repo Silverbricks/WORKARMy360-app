@@ -1,18 +1,29 @@
 import { z } from 'zod';
-import { ACCOUNT_TYPES, type AccountType } from '@workarmy/types';
+import { ACCOUNT_TYPES, PROVIDER_ACCOUNT_TYPES, type AccountType } from '@workarmy/types';
 import { auEmail, auMobile, otpCode, personName, strongPassword } from './primitives';
 
 const accountTypeEnum = z.enum(ACCOUNT_TYPES as unknown as [AccountType, ...AccountType[]]);
 
-export const RegisterSchema = z.object({
-  firstName: personName,
-  lastName: personName,
-  email: auEmail,
-  password: strongPassword,
-  mobile: auMobile,
-  accountType: accountTypeEnum,
-  turnstileToken: z.string().optional(),
-});
+export const RegisterSchema = z
+  .object({
+    firstName: personName,
+    lastName: personName,
+    email: auEmail,
+    password: strongPassword,
+    mobile: auMobile,
+    accountType: accountTypeEnum,
+    companyName: z.string().trim().min(1, 'Company name is required').max(120).optional(),
+    turnstileToken: z.string().optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (PROVIDER_ACCOUNT_TYPES.includes(val.accountType) && !val.companyName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['companyName'],
+        message: 'Company name is required',
+      });
+    }
+  });
 
 export const VerifyEmailSchema = z.object({
   email: auEmail,

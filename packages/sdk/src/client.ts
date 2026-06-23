@@ -1,5 +1,9 @@
 import { HttpClient, type HttpClientOptions } from './http';
 import { createAuthClient } from './endpoints/auth';
+import { createOrganisationsClient } from './endpoints/organisations';
+import { createJobsClient } from './endpoints/jobs';
+import { createApplicationsClient } from './endpoints/applications';
+import { createAdminClient } from './endpoints/admin';
 
 export type WorkArmyClientOptions = HttpClientOptions;
 
@@ -9,6 +13,10 @@ export function createClient(opts: WorkArmyClientOptions) {
   return {
     http,
     auth: createAuthClient(http),
+    organisations: createOrganisationsClient(http),
+    jobs: createJobsClient(http),
+    applications: createApplicationsClient(http),
+    admin: createAdminClient(http),
   };
 }
 

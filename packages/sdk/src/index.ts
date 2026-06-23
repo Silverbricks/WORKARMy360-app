@@ -1,3 +1,7 @@
 export * from './http';
 export * from './endpoints/auth';
+export * from './endpoints/organisations';
+export * from './endpoints/jobs';
+export * from './endpoints/applications';
+export * from './endpoints/admin';
 export * from './client';

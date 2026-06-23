@@ -10,6 +10,7 @@ import {
   verifyPassword,
 } from '@workarmy/auth';
 import { allocateWaId } from '@workarmy/database';
+import { PROVIDER_ACCOUNT_TYPES } from '@workarmy/types';
 import type {
   ForgotPasswordInput,
   LoginInput,
@@ -64,23 +65,40 @@ export class AuthService {
     }
 
     const passwordHash = await hashPassword(dto.password);
-    const { user, person } = await this.prisma.$transaction(async (tx) => {
+    const isProvider = PROVIDER_ACCOUNT_TYPES.includes(dto.accountType);
+
+    const { user, person, org } = await this.prisma.$transaction(async (tx) => {
       const createdUser = await tx.user.create({ data: { email: dto.email, passwordHash } });
       await tx.authIdentity.create({
         data: { userId: createdUser.id, provider: 'LOCAL', providerUserId: dto.email },
       });
-      const waId = await allocateWaId(tx);
+      const personWaId = await allocateWaId(tx);
       const createdPerson = await tx.person.create({
         data: {
           userId: createdUser.id,
-          waId,
+          waId: personWaId,
           accountType: dto.accountType,
           firstName: dto.firstName,
           lastName: dto.lastName,
           mobile: dto.mobile,
         },
       });
-      return { user: createdUser, person: createdPerson };
+
+      let createdOrg = null;
+      if (isProvider) {
+        const orgWaId = await allocateWaId(tx);
+        createdOrg = await tx.organisation.create({
+          data: {
+            waId: orgWaId,
+            accountType: dto.accountType,
+            name: dto.companyName ?? `${dto.firstName} ${dto.lastName}`,
+            members: { create: { personId: createdPerson.id, role: 'owner' } },
+            profile: { create: {} },
+            verifications: { create: { status: 'PENDING' } },
+          },
+        });
+      }
+      return { user: createdUser, person: createdPerson, org: createdOrg };
     });
 
     const otpExpiresAt = await this.otp.issue(user);
@@ -91,6 +109,13 @@ export class AuthService {
       userAgent: ctx.userAgent,
       metadata: { accountType: dto.accountType, waId: person.waId },
     });
+    if (org) {
+      await this.audit.record('ORG_CREATED', {
+        userId: user.id,
+        ip: ctx.ip,
+        metadata: { orgId: org.id, waId: org.waId },
+      });
+    }
     await this.audit.record('OTP_SENT', { userId: user.id, ip: ctx.ip });
 
     return { userId: user.id, waId: person.waId, otpExpiresAt: otpExpiresAt.toISOString() };

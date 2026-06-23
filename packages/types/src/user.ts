@@ -1,4 +1,5 @@
 import type { AccountType } from './account';
+import type { AdminRole, OrgSummary } from './organisation';
 
 export type UserStatus = 'pending' | 'active' | 'suspended';
 
@@ -8,6 +9,7 @@ export interface AuthUser {
   email: string;
   status: UserStatus;
   emailVerified: boolean;
+  adminRole: AdminRole | null;
 }
 
 /** The person (human) summary — identity/profile lives here, not on `users`. */
@@ -23,6 +25,7 @@ export interface PersonSummary {
 export interface MeResponse {
   user: AuthUser;
   person: PersonSummary | null;
+  organisation: OrgSummary | null;
 }
 
 /** Claims carried in the short-lived access token. */

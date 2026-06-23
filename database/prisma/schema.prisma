@@ -55,6 +55,51 @@ enum AuditAction {
   ACCOUNT_LOCKED
   OTP_SENT
   OTP_FAILED
+  ORG_CREATED
+  JOB_PUBLISHED
+  JOB_CLOSED
+  APPLICATION_SUBMITTED
+  APPLICATION_STAGE_CHANGED
+  ORG_VERIFIED
+  ORG_REJECTED
+  DOCUMENT_UPLOADED
+}
+
+/// Platform staff role (admins are auth users with no provider org).
+enum AdminRole {
+  SUPER_ADMIN
+  SUB_ADMIN
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum ApplicationStage {
+  APPLIED
+  SHORTLISTED
+  INTERVIEW
+  OFFERED
+  HIRED
+  REJECTED
+  WITHDRAWN
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocumentKind {
+  LICENCE
+  INSURANCE
+  ID
+  CERTIFICATE
+  OTHER
 }
 
 // --- WA ID -----------------------------------------------------------------
@@ -81,6 +126,7 @@ model User {
   failedLoginAttempts Int        @default(0) @map("failed_login_attempts") @db.SmallInt
   lockedUntil         DateTime?  @map("locked_until")
   lastLoginAt         DateTime?  @map("last_login_at")
+  adminRole           AdminRole? @map("admin_role") // null for normal members
   createdAt           DateTime   @default(now()) @map("created_at")
   updatedAt           DateTime   @updatedAt @map("updated_at")
 
@@ -140,8 +186,11 @@ model Person {
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
-  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   orgMemberships OrgMember[]
+  applications   JobApplication[]
+  documents      Document[]
+  credentials    Credential[]
 
   @@map("persons")
 }
@@ -156,9 +205,193 @@ model Organisation {
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
-  members OrgMember[]
+  members       OrgMember[]
+  profile       OrgProfile?
+  contacts      Contact[]
+  jobs          Job[]
+  documents     Document[]
+  credentials   Credential[]
+  verifications Verification[]
 
   @@map("organisations")
+}
+
+/// Type-specific extension of an organisation. Completeness lives HERE (a UX
+/// progress metric); compliance is separate (credentials + verifications).
+model OrgProfile {
+  orgId         String   @id @map("org_id") @db.Uuid
+  legalName     String?  @map("legal_name")
+  tradingName   String?  @map("trading_name")
+  abn           String?
+  structure     String? // Company / Sole Trader / Partnership / Trust
+  industry      String?
+  workforceSize String?  @map("workforce_size")
+  about         String?
+  website       String?
+  addressLine   String?  @map("address_line")
+  suburb        String?
+  state         String?
+  postcode      String?
+  region        String?
+  extension     Json? // farm crops / agency specialisations / etc.
+  completeness  Int      @default(0)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("org_profiles")
+}
+
+/// Repeatable contact entity (Provider onboarding spec) — never flat columns.
+/// Exactly one isPrimary per org (enforced in service + partial unique index).
+model Contact {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  firstName   String   @map("first_name")
+  lastName    String   @map("last_name")
+  position    String?
+  email       String?
+  phone       String?
+  roleTag     String?  @map("role_tag") // Accounts / Supervisor / Safety / HR / Operations
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  isBilling   Boolean  @default(false) @map("is_billing")
+  isEmergency Boolean  @default(false) @map("is_emergency")
+  isSignatory Boolean  @default(false) @map("is_signatory")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("contacts")
+}
+
+// --- jobs & applications (the marketplace loop) ----------------------------
+
+model Job {
+  id             String    @id @default(uuid()) @db.Uuid
+  orgId          String    @map("org_id") @db.Uuid
+  waId           String?   @unique @map("wa_id")
+  title          String
+  description    String?
+  status         JobStatus @default(DRAFT)
+  category       String?
+  employmentType String?   @map("employment_type") // full-time / casual / seasonal / contract
+  location       String?
+  suburb         String?
+  state          String?
+  payMin         Int?      @map("pay_min")
+  payMax         Int?      @map("pay_max")
+  payUnit        String?   @map("pay_unit") // hour / day / week / year
+  positions      Int       @default(1)
+  startDate      DateTime? @map("start_date")
+  publishedAt    DateTime? @map("published_at")
+  closedAt       DateTime? @map("closed_at")
+  extension      Json?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organisation Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  applications JobApplication[]
+
+  @@index([orgId])
+  @@index([status, state])
+  @@map("jobs")
+}
+
+model JobApplication {
+  id        String           @id @default(uuid()) @db.Uuid
+  jobId     String           @map("job_id") @db.Uuid
+  personId  String           @map("person_id") @db.Uuid
+  stage     ApplicationStage @default(APPLIED)
+  coverNote String?          @map("cover_note")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  job    Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  person Person             @relation(fields: [personId], references: [id], onDelete: Cascade)
+  events ApplicationEvent[]
+
+  @@unique([jobId, personId])
+  @@index([jobId, stage])
+  @@index([personId])
+  @@map("job_applications")
+}
+
+model ApplicationEvent {
+  id            String            @id @default(uuid()) @db.Uuid
+  applicationId String            @map("application_id") @db.Uuid
+  fromStage     ApplicationStage? @map("from_stage")
+  toStage       ApplicationStage  @map("to_stage")
+  actorUserId   String?           @map("actor_user_id") @db.Uuid
+  note          String?
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("application_events")
+}
+
+// --- documents & compliance (separate from profile completeness) -----------
+
+model Document {
+  id               String       @id @default(uuid()) @db.Uuid
+  ownerOrgId       String?      @map("owner_org_id") @db.Uuid
+  ownerPersonId    String?      @map("owner_person_id") @db.Uuid
+  kind             DocumentKind @default(OTHER)
+  fileName         String       @map("file_name")
+  storageKey       String       @map("storage_key")
+  mimeType         String?      @map("mime_type")
+  sizeBytes        Int?         @map("size_bytes")
+  uploadedByUserId String       @map("uploaded_by_user_id") @db.Uuid
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  organisation Organisation? @relation(fields: [ownerOrgId], references: [id], onDelete: Cascade)
+  person       Person?       @relation(fields: [ownerPersonId], references: [id], onDelete: Cascade)
+  credentials  Credential[]
+
+  @@index([ownerOrgId])
+  @@index([ownerPersonId])
+  @@map("documents")
+}
+
+model Credential {
+  id            String    @id @default(uuid()) @db.Uuid
+  orgId         String?   @map("org_id") @db.Uuid
+  personId      String?   @map("person_id") @db.Uuid
+  type          String // licence / insurance / abn / right-to-work / police-check
+  identifier    String?
+  issuer        String?
+  expiresAt     DateTime? @map("expires_at")
+  documentId    String?   @map("document_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  organisation Organisation?  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  person       Person?        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  document     Document?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  verifications Verification[]
+
+  @@index([orgId])
+  @@index([personId])
+  @@map("credentials")
+}
+
+model Verification {
+  id               String             @id @default(uuid()) @db.Uuid
+  subjectOrgId     String?            @map("subject_org_id") @db.Uuid
+  subjectPersonId  String?            @map("subject_person_id") @db.Uuid
+  credentialId     String?            @map("credential_id") @db.Uuid
+  status           VerificationStatus @default(PENDING)
+  reviewedByUserId String?            @map("reviewed_by_user_id") @db.Uuid
+  reviewNote       String?            @map("review_note")
+  reviewedAt       DateTime?          @map("reviewed_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+
+  organisation Organisation? @relation(fields: [subjectOrgId], references: [id], onDelete: Cascade)
+  credential   Credential?   @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("verifications")
 }
 
 model OrgMember {
