@@ -2,7 +2,7 @@
 
 import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Button, Field, Input, t } from '@workarmy/ui';
+import { Alert, Button, Field, Input, PasswordInput, t } from '@workarmy/ui';
 import { passwordStrength, RegisterSchema } from '@workarmy/validation';
 import { api } from '@/lib/api';
 import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '@/lib/form';
@@ -110,9 +110,8 @@ export function RegisterForm() {
         />
       </Field>
       <Field id="password" label={t('auth.password.label')} error={errors.password}>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           value={values.password}
           onChange={update('password')}
           invalid={!!errors.password}

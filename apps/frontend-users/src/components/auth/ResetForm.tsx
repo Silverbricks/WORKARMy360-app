@@ -3,7 +3,7 @@
 import { type FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Alert, Button, Field, Input, t } from '@workarmy/ui';
+import { Alert, Button, Field, PasswordInput, t } from '@workarmy/ui';
 import { passwordStrength, ResetPasswordSchema } from '@workarmy/validation';
 import { api } from '@/lib/api';
 import { errorMessage, zodFieldErrors, type FieldErrors } from '@/lib/form';
@@ -52,9 +52,8 @@ export function ResetForm() {
       {formError ? <Alert tone="error">{formError}</Alert> : null}
       {!token ? <Alert tone="warning">This reset link is missing its token.</Alert> : null}
       <Field id="password" label={t('auth.password.label')} error={errors.password}>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           invalid={!!errors.password}

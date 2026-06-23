@@ -3,7 +3,7 @@
 import { type ChangeEvent, type FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Alert, Button, Field, Input, t } from '@workarmy/ui';
+import { Alert, Button, Field, Input, PasswordInput, t } from '@workarmy/ui';
 import { LoginSchema } from '@workarmy/validation';
 import { WorkArmyApiError } from '@workarmy/sdk';
 import { api, setAccessToken, setAuthHint } from '@/lib/api';
@@ -60,9 +60,8 @@ export function LoginForm() {
         />
       </Field>
       <Field id="password" label={t('auth.password.label')} error={errors.password}>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           value={values.password}
           onChange={update('password')}
           invalid={!!errors.password}

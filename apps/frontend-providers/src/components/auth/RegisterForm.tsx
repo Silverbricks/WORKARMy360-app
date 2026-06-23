@@ -2,7 +2,7 @@
 
 import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Alert, Button, Field, Input } from '@workarmy/ui';
+import { Alert, Button, Field, Input, PasswordInput } from '@workarmy/ui';
 import { PROVIDER_ACCOUNT_TYPES, type AccountType } from '@workarmy/types';
 import { RegisterSchema } from '@workarmy/validation';
 import { api } from '@/lib/api';
@@ -103,7 +103,7 @@ export function RegisterForm() {
         <Input id="mobile" type="tel" value={values.mobile} onChange={update('mobile')} invalid={!!errors.mobile} autoComplete="tel" />
       </Field>
       <Field id="password" label="Password" error={errors.password}>
-        <Input id="password" type="password" value={values.password} onChange={update('password')} invalid={!!errors.password} autoComplete="new-password" />
+        <PasswordInput id="password" value={values.password} onChange={update('password')} invalid={!!errors.password} autoComplete="new-password" />
       </Field>
       <Button type="submit" fullWidth loading={submitting}>
         Create account

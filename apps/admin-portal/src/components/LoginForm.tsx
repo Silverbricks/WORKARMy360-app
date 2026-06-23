@@ -2,7 +2,7 @@
 
 import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Button, Field, Input } from '@workarmy/ui';
+import { Alert, Button, Field, Input, PasswordInput } from '@workarmy/ui';
 import { LoginSchema } from '@workarmy/validation';
 import { api, clearAuthHint, setAccessToken, setAuthHint } from '@/lib/api';
 import { errorMessage, zodFieldErrors, type FieldErrors } from '@/lib/form';
@@ -54,7 +54,7 @@ export function LoginForm() {
         <Input id="email" type="email" value={values.email} onChange={update('email')} invalid={!!errors.email} autoComplete="email" />
       </Field>
       <Field id="password" label="Password" error={errors.password}>
-        <Input id="password" type="password" value={values.password} onChange={update('password')} invalid={!!errors.password} autoComplete="current-password" />
+        <PasswordInput id="password" value={values.password} onChange={update('password')} invalid={!!errors.password} autoComplete="current-password" />
       </Field>
       <Button type="submit" fullWidth loading={submitting}>
         Log in

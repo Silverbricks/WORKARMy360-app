@@ -2,6 +2,7 @@ export * from './cn';
 export * from './Icon';
 export * from './Button';
 export * from './Input';
+export * from './PasswordInput';
 export * from './Field';
 export * from './Alert';
 export * from './Card';
