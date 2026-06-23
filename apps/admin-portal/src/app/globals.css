@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+
+@source '../../../../packages/ui/src/**/*.{ts,tsx}';
+
+@theme {
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-hanken);
+  --color-charcoal: #1b1f24;
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-line: #e5e7eb;
+  --color-ink: #1e293b;
+}
+
+/* Admin accent (Super Admin grey). */
+:root {
+  --accent: #4b5563;
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
