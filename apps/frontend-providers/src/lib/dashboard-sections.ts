@@ -1,7 +1,7 @@
 import type { AccountType } from '@workarmy/types';
 import type { IconName } from '@workarmy/ui';
 
-export type SectionKind = 'home' | 'profile' | 'jobs' | 'stub';
+export type SectionKind = 'home' | 'profile' | 'jobs' | 'shifts' | 'stub';
 
 export interface SectionGroup {
   title: string;
@@ -71,6 +71,15 @@ const jobs = (navLabel: string): SectionDef => ({
   intro: 'Post work, publish it, and manage applicants through the hiring pipeline.',
 });
 
+const shifts: SectionDef = {
+  slug: 'shifts',
+  navLabel: 'Shifts & Pay',
+  icon: 'calendar',
+  kind: 'shifts',
+  title: 'Shifts & Pay',
+  intro: 'Create shifts, assign workers, approve timesheets and issue payslips.',
+};
+
 const stub = (slug: string, navLabel: string, icon: IconName, groups: SectionGroup[]): SectionDef => ({
   slug,
   navLabel,
@@ -86,6 +95,7 @@ export const SECTIONS_BY_ACCOUNT_TYPE: Record<AccountType, SectionDef[]> = {
     home,
     profile('Company Profile'),
     jobs('Jobs'),
+    shifts,
     stub('team', 'Team', 'users', [{ title: 'Team', items: ['Invite teammates', 'Roles & permissions'] }]),
     documents,
     compliance,
@@ -95,6 +105,7 @@ export const SECTIONS_BY_ACCOUNT_TYPE: Record<AccountType, SectionDef[]> = {
     home,
     profile('Farm Profile'),
     jobs('Seasonal Jobs'),
+    shifts,
     stub('workforce', 'Workforce', 'users', [
       { title: 'Crews', items: ['Crew rosters', 'Harvest teams', 'Supervisors'] },
     ]),
@@ -108,6 +119,7 @@ export const SECTIONS_BY_ACCOUNT_TYPE: Record<AccountType, SectionDef[]> = {
     home,
     profile('Contractor Profile'),
     jobs('Projects'),
+    shifts,
     stub('invitations', 'Invitations', 'mail', [
       { title: 'Invitations', items: ['Open invitations', 'Quotes'] },
     ]),
@@ -119,6 +131,7 @@ export const SECTIONS_BY_ACCOUNT_TYPE: Record<AccountType, SectionDef[]> = {
     home,
     profile('Agency Profile'),
     jobs('Jobs'),
+    shifts,
     stub('workforce', 'Workforce', 'users', [
       { title: 'Workforce', items: ['Supplied workers', 'Availability'] },
     ]),
@@ -131,6 +144,7 @@ export const SECTIONS_BY_ACCOUNT_TYPE: Record<AccountType, SectionDef[]> = {
     home,
     profile('Agency Profile'),
     jobs('Jobs'),
+    shifts,
     stub('candidates', 'Candidates', 'users', [
       { title: 'Pipeline', items: ['Sourced', 'Shortlists', 'Placements'] },
     ]),

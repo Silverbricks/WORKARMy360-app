@@ -1,5 +1,8 @@
 import type {
+  BecomeProviderInput,
+  EmployerSummary,
   OkResponse,
+  OrgSummary,
   PersonDetail,
   PersonPreferences,
   PersonPreferencesUpdate,
@@ -20,6 +23,9 @@ export function createPersonsClient(http: HttpClient) {
       http.request<PersonPreferences>('/persons/me/preferences', { method: 'PUT', body }),
     setPhoto: (documentId: string) =>
       http.request<PersonProfile>('/persons/me/photo', { method: 'PUT', body: { documentId } }),
+    employers: () => http.request<EmployerSummary[]>('/persons/me/employers'),
+    becomeProvider: (body: BecomeProviderInput) =>
+      http.request<OrgSummary>('/persons/me/become-provider', { method: 'POST', body }),
     addExperience: (body: WorkExperienceInput) =>
       http.request<WorkExperience>('/persons/me/experience', { method: 'POST', body }),
     updateExperience: (id: string, body: Partial<WorkExperienceInput>) =>

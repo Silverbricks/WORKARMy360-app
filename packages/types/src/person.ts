@@ -116,6 +116,12 @@ export const USER_TYPES = [
   'Professional',
 ] as const;
 
+/** A job seeker turning their account into a provider organisation too. */
+export interface BecomeProviderInput {
+  accountType: 'EMPLOYER' | 'FARM' | 'CONTRACTOR' | 'LABOUR_HIRE' | 'RECRUITMENT_AGENCY';
+  companyName: string;
+}
+
 /** Full Job Seeker view returned by GET /persons/me. */
 export interface PersonDetail {
   waId: string;

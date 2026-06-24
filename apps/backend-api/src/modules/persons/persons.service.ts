@@ -1,5 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import type { PersonDetail, PersonPreferences, PersonProfile, WorkExperience } from '@workarmy/types';
+import { allocateWaId } from '@workarmy/database';
+import type {
+  BecomeProviderInput,
+  EmployerSummary,
+  OrgSummary,
+  PersonDetail,
+  PersonPreferences,
+  PersonProfile,
+  WorkExperience,
+} from '@workarmy/types';
 import type {
   DbPersonProfile,
   DbWorkExperience,
@@ -58,6 +67,63 @@ export class PersonsService {
       preferences: person.profile ? toPreferences(person.profile) : null,
       experiences: person.experiences.map(toExperience),
     };
+  }
+
+  async becomeProvider(userId: string, input: BecomeProviderInput): Promise<OrgSummary> {
+    const ctx = await this.membership.getContext(userId);
+    if (!ctx.personId) throw ApiException.unauthorized();
+    if (ctx.orgId) {
+      throw ApiException.badRequest('VALIDATION_ERROR', 'You already have a provider organisation.');
+    }
+    const personId = ctx.personId;
+    const org = await this.prisma.$transaction(async (tx) => {
+      const waId = await allocateWaId(tx);
+      return tx.organisation.create({
+        data: {
+          waId,
+          accountType: input.accountType,
+          name: input.companyName,
+          members: { create: { personId, role: 'owner' } },
+          profile: { create: {} },
+          verifications: { create: { status: 'PENDING' } },
+        },
+      });
+    });
+    return { id: org.id, waId: org.waId, accountType: org.accountType, name: org.name, role: 'owner' };
+  }
+
+  async employers(userId: string): Promise<EmployerSummary[]> {
+    const personId = await this.membership.requirePerson(userId);
+    const [assignments, hired] = await Promise.all([
+      this.prisma.shiftAssignment.findMany({
+        where: { personId },
+        include: { shift: { include: { organisation: true } } },
+      }),
+      this.prisma.jobApplication.findMany({
+        where: { personId, stage: 'HIRED' },
+        include: { job: { include: { organisation: true } } },
+      }),
+    ]);
+    const now = new Date();
+    const map = new Map<string, EmployerSummary>();
+    for (const a of assignments) {
+      const o = a.shift.organisation;
+      const e =
+        map.get(o.id) ??
+        { orgId: o.id, name: o.name, accountType: o.accountType, current: false, shiftsCount: 0 };
+      e.shiftsCount += 1;
+      if (a.shift.endAt >= now && a.shift.status !== 'CANCELLED') e.current = true;
+      map.set(o.id, e);
+    }
+    for (const h of hired) {
+      const o = h.job.organisation;
+      const e =
+        map.get(o.id) ??
+        { orgId: o.id, name: o.name, accountType: o.accountType, current: true, shiftsCount: 0 };
+      e.current = true;
+      map.set(o.id, e);
+    }
+    return [...map.values()];
   }
 
   async setPhoto(userId: string, documentId: string): Promise<PersonProfile> {

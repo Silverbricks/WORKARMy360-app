@@ -3,4 +3,5 @@ export type {
   PersonProfileUpdateInput,
   WorkExperienceInputData,
   PersonPreferencesUpdateInput,
+  BecomeProviderData,
 } from '@workarmy/validation';

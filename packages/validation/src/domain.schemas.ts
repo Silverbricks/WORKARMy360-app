@@ -119,6 +119,52 @@ export const ResumeShareSchema = z.object({ isPublic: z.boolean() });
 
 export const PhotoUpdateSchema = z.object({ documentId: z.string().trim().min(1).max(40) });
 
+// --- work & earnings -------------------------------------------------------
+
+export const ShiftInputSchema = z.object({
+  title: z.string().trim().min(2, 'Title is required').max(160),
+  jobId: optionalText(40),
+  location: optionalText(160),
+  suburb: optionalText(80),
+  state: optionalText(40),
+  startAt: z.string().trim().min(1, 'Start time is required'),
+  endAt: z.string().trim().min(1, 'End time is required'),
+  breakMinutes: z.coerce.number().int().nonnegative().max(600).optional(),
+  payRate: z.coerce.number().int().nonnegative().optional(),
+  payUnit: optionalText(20),
+  positions: z.coerce.number().int().positive().max(999).optional(),
+  notes: optionalText(2000),
+});
+
+export const AssignInputSchema = z.object({
+  waId: z.string().trim().min(1, 'Worker WA ID is required'),
+});
+
+export const ClockInputSchema = z.object({
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional(),
+});
+
+export const SwapRequestInputSchema = z.object({
+  note: optionalText(500),
+});
+
+export const PayslipInputSchema = z.object({
+  personWaId: z.string().trim().min(1, 'Worker WA ID is required'),
+  periodStart: z.string().trim().min(1).max(10),
+  periodEnd: z.string().trim().min(1).max(10),
+  hours: z.coerce.number().nonnegative().optional(),
+  grossPay: z.coerce.number().int().nonnegative().optional(),
+  tax: z.coerce.number().int().nonnegative().optional(),
+  superannuation: z.coerce.number().int().nonnegative().optional(),
+  netPay: z.coerce.number().int().nonnegative().optional(),
+});
+
+export const BecomeProviderSchema = z.object({
+  accountType: z.enum(['EMPLOYER', 'FARM', 'CONTRACTOR', 'LABOUR_HIRE', 'RECRUITMENT_AGENCY']),
+  companyName: z.string().trim().min(2, 'Organisation name is required').max(160),
+});
+
 // --- jobs ------------------------------------------------------------------
 
 export const JobInputSchema = z.object({
@@ -173,6 +219,12 @@ export type VerificationRequestData = z.infer<typeof VerificationRequestSchema>;
 export type ResumeUpdateData = z.infer<typeof ResumeUpdateSchema>;
 export type ResumeShareData = z.infer<typeof ResumeShareSchema>;
 export type PhotoUpdateData = z.infer<typeof PhotoUpdateSchema>;
+export type ShiftInputData = z.infer<typeof ShiftInputSchema>;
+export type AssignInputData = z.infer<typeof AssignInputSchema>;
+export type ClockInputData = z.infer<typeof ClockInputSchema>;
+export type SwapRequestInputData = z.infer<typeof SwapRequestInputSchema>;
+export type PayslipInputData = z.infer<typeof PayslipInputSchema>;
+export type BecomeProviderData = z.infer<typeof BecomeProviderSchema>;
 export type JobInputData = z.infer<typeof JobInputSchema>;
 export type JobBrowseQueryData = z.infer<typeof JobBrowseQuerySchema>;
 export type ApplyInputData = z.infer<typeof ApplyInputSchema>;

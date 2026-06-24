@@ -4,6 +4,7 @@ export * from './endpoints/persons';
 export * from './endpoints/files';
 export * from './endpoints/credentials';
 export * from './endpoints/resume';
+export * from './endpoints/work';
 export * from './endpoints/organisations';
 export * from './endpoints/jobs';
 export * from './endpoints/applications';

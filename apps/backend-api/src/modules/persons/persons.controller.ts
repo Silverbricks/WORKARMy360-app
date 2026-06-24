@@ -1,12 +1,16 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import {
+  BecomeProviderSchema,
   PersonPreferencesUpdateSchema,
   PersonProfileUpdateSchema,
   PhotoUpdateSchema,
   WorkExperienceInputSchema,
 } from '@workarmy/validation';
 import type {
+  BecomeProviderInput,
+  EmployerSummary,
   OkResponse,
+  OrgSummary,
   PersonDetail,
   PersonPreferences,
   PersonProfile,
@@ -16,6 +20,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { PersonsService } from './persons.service';
 import type {
+  BecomeProviderData,
   PersonPreferencesUpdateInput,
   PersonProfileUpdateInput,
   WorkExperienceInputData,
@@ -57,6 +62,19 @@ export class PersonsController {
     @Body(new ZodValidationPipe(PhotoUpdateSchema)) dto: { documentId: string },
   ): Promise<PersonProfile> {
     return this.persons.setPhoto(user.sub, dto.documentId);
+  }
+
+  @Get('me/employers')
+  employers(@CurrentUser() user: { sub: string }): Promise<EmployerSummary[]> {
+    return this.persons.employers(user.sub);
+  }
+
+  @Post('me/become-provider')
+  becomeProvider(
+    @CurrentUser() user: { sub: string },
+    @Body(new ZodValidationPipe(BecomeProviderSchema)) dto: BecomeProviderData,
+  ): Promise<OrgSummary> {
+    return this.persons.becomeProvider(user.sub, dto as BecomeProviderInput);
   }
 
   @Post('me/experience')

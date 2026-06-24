@@ -102,6 +102,35 @@ enum DocumentKind {
   OTHER
 }
 
+enum ShiftStatus {
+  OPEN
+  FILLED
+  COMPLETED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  CONFIRMED
+  COMPLETED
+  NO_SHOW
+  SWAP_REQUESTED
+}
+
+enum TimesheetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum SwapStatus {
+  OPEN
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
 // --- WA ID -----------------------------------------------------------------
 
 /// Single global, atomic counter. One monotonic WA###### sequence shared by
@@ -196,6 +225,9 @@ model Person {
   documents      Document[]
   credentials    Credential[]
   verifications  Verification[]
+  assignments    ShiftAssignment[]
+  timesheets     Timesheet[]
+  payslips       Payslip[]
 
   @@map("persons")
 }
@@ -315,6 +347,9 @@ model Organisation {
   documents     Document[]
   credentials   Credential[]
   verifications Verification[]
+  shifts        Shift[]
+  timesheets    Timesheet[]
+  payslips      Payslip[]
 
   @@map("organisations")
 }
@@ -511,6 +546,133 @@ model OrgMember {
 
   @@unique([orgId, personId])
   @@map("org_members")
+}
+
+// --- work & earnings (two-sided: org creates shifts, person works them) -----
+
+model Shift {
+  id           String      @id @default(uuid()) @db.Uuid
+  orgId        String      @map("org_id") @db.Uuid
+  jobId        String?     @map("job_id") @db.Uuid // soft link (no FK)
+  title        String
+  location     String?
+  suburb       String?
+  state        String?
+  startAt      DateTime    @map("start_at")
+  endAt        DateTime    @map("end_at")
+  breakMinutes Int         @default(0) @map("break_minutes")
+  payRate      Int?        @map("pay_rate") // dollars per unit
+  payUnit      String?     @map("pay_unit") // hour / day / shift
+  positions    Int         @default(1)
+  notes        String?
+  status       ShiftStatus @default(OPEN)
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  organisation Organisation      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  assignments  ShiftAssignment[]
+
+  @@index([orgId])
+  @@map("shifts")
+}
+
+model ShiftAssignment {
+  id        String           @id @default(uuid()) @db.Uuid
+  shiftId   String           @map("shift_id") @db.Uuid
+  personId  String           @map("person_id") @db.Uuid
+  status    AssignmentStatus @default(ASSIGNED)
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  shift        Shift             @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  person       Person            @relation(fields: [personId], references: [id], onDelete: Cascade)
+  attendance   Attendance?
+  swapRequests ShiftSwapRequest[]
+
+  @@unique([shiftId, personId])
+  @@index([personId])
+  @@map("shift_assignments")
+}
+
+model Attendance {
+  id          String    @id @default(uuid()) @db.Uuid
+  assignmentId String   @unique @map("assignment_id") @db.Uuid
+  clockInAt   DateTime? @map("clock_in_at")
+  clockOutAt  DateTime? @map("clock_out_at")
+  clockInLat  Float?    @map("clock_in_lat")
+  clockInLng  Float?    @map("clock_in_lng")
+  clockOutLat Float?    @map("clock_out_lat")
+  clockOutLng Float?    @map("clock_out_lng")
+
+  assignment ShiftAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@map("attendance")
+}
+
+model Timesheet {
+  id         String          @id @default(uuid()) @db.Uuid
+  personId   String          @map("person_id") @db.Uuid
+  orgId      String          @map("org_id") @db.Uuid
+  weekStart  String          @map("week_start") // ISO YYYY-MM-DD (Monday)
+  status     TimesheetStatus @default(DRAFT)
+  totalHours Float           @default(0) @map("total_hours")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  person       Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
+  organisation Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  entries      TimesheetEntry[]
+
+  @@index([personId])
+  @@index([orgId, status])
+  @@map("timesheets")
+}
+
+model TimesheetEntry {
+  id          String  @id @default(uuid()) @db.Uuid
+  timesheetId String  @map("timesheet_id") @db.Uuid
+  shiftId     String? @map("shift_id") @db.Uuid
+  date        String // ISO YYYY-MM-DD
+  hours       Float
+  note        String?
+
+  timesheet Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  @@index([timesheetId])
+  @@map("timesheet_entries")
+}
+
+model Payslip {
+  id             String   @id @default(uuid()) @db.Uuid
+  personId       String   @map("person_id") @db.Uuid
+  orgId          String   @map("org_id") @db.Uuid
+  periodStart    String   @map("period_start")
+  periodEnd      String   @map("period_end")
+  hours          Float    @default(0)
+  grossPay       Int      @default(0) @map("gross_pay")
+  tax            Int      @default(0)
+  superannuation Int      @default(0)
+  netPay         Int      @default(0) @map("net_pay")
+  documentId     String?  @map("document_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  person       Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@index([orgId])
+  @@map("payslips")
+}
+
+model ShiftSwapRequest {
+  id                  String     @id @default(uuid()) @db.Uuid
+  assignmentId        String     @map("assignment_id") @db.Uuid
+  requestedByPersonId String     @map("requested_by_person_id") @db.Uuid
+  status              SwapStatus @default(OPEN)
+  note                String?
+  createdAt           DateTime   @default(now()) @map("created_at")
+
+  assignment ShiftAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@map("shift_swap_requests")
 }
 
 // --- OTP & password reset (hashed, attempt-capped) -------------------------

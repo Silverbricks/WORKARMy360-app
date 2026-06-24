@@ -6,6 +6,7 @@ import { useMe } from './DashboardShell';
 import { SectionStub } from './SectionStub';
 import { OrgProfileSection } from './OrgProfileSection';
 import { JobsSection } from './JobsSection';
+import { WorkforceSection } from './WorkforceSection';
 
 export function DashboardSection({ slug }: { slug: string }) {
   const me = useMe();
@@ -20,5 +21,6 @@ export function DashboardSection({ slug }: { slug: string }) {
   }
   if (section.kind === 'profile') return <OrgProfileSection />;
   if (section.kind === 'jobs') return <JobsSection title={section.title} />;
+  if (section.kind === 'shifts') return <WorkforceSection />;
   return <SectionStub section={section} />;
 }
