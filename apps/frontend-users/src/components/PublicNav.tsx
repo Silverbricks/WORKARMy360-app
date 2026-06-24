@@ -33,9 +33,19 @@ export function PublicNav() {
   if (authed) {
     return (
       <nav className="flex items-center gap-1 text-sm">
-        <Link href="/" className={linkClass}>
-          Visit site ↗
-        </Link>
+        <div className="hidden items-center gap-1 lg:flex">
+          {links.map((link) =>
+            link.external ? (
+              <a key={link.key} href={link.href} className={linkClass}>
+                {t(link.key)}
+              </a>
+            ) : (
+              <Link key={link.key} href={link.href} className={linkClass}>
+                {t(link.key)}
+              </Link>
+            ),
+          )}
+        </div>
         <Link
           href="/dashboard"
           className="rounded-lg px-3 py-2 font-medium text-white transition hover:brightness-95"

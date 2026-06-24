@@ -6,6 +6,7 @@ import type { MeResponse } from '@workarmy/types';
 import { t } from '@workarmy/ui';
 import { api, bootstrapSession, clearAuthHint, setAccessToken } from '@/lib/api';
 import { Sidebar } from './Sidebar';
+import { DashboardHeader } from './DashboardHeader';
 
 const MeContext = createContext<MeResponse | null>(null);
 
@@ -61,10 +62,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <MeContext.Provider value={me}>
-      <div className="grid gap-6 py-8 md:grid-cols-[230px_1fr]">
-        <Sidebar onLogout={logout} />
-        <div className="min-w-0">{children}</div>
-      </div>
+      <DashboardHeader me={me} onLogout={logout} />
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4">
+        <div className="grid gap-6 py-8 md:grid-cols-[230px_1fr]">
+          <Sidebar onLogout={logout} />
+          <div className="min-w-0">{children}</div>
+        </div>
+      </main>
     </MeContext.Provider>
   );
 }
