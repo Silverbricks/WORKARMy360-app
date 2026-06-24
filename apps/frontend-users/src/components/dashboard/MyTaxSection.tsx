@@ -44,15 +44,16 @@ export function MyTaxSection() {
     setBusy(true);
     setError(null);
     try {
+      const digits = (v: string | null) => (v ?? '').replace(/\D/g, '');
       const next = await api.workReadiness.update({
         engagement: (w.engagement ?? 'employee') as Engagement,
-        tfn: w.tfn ?? '',
-        abn: w.abn ?? '',
+        tfn: digits(w.tfn),
+        abn: digits(w.abn),
         hasSuper: w.hasSuper,
         superFund: w.superFund ?? '',
         superMember: w.superMember ?? '',
-        bankBsb: w.bankBsb ?? '',
-        bankAccount: w.bankAccount ?? '',
+        bankBsb: digits(w.bankBsb),
+        bankAccount: digits(w.bankAccount),
         noCashAck: w.noCashAck,
         bankLater: w.bankLater,
       });

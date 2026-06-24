@@ -71,12 +71,12 @@ export function GetJobFasterSection() {
         suburb: card.suburb ?? '',
         state: card.state ?? '',
         availability: card.availability ?? '',
-        workType: (card.workType as AvailabilityCard['workType']) ?? '',
-        availableFrom: card.availableFrom ?? '',
+        workType: card.workType ?? 'any',
+        availableFrom: card.availableFrom ?? 'ASAP',
         urgentShifts: card.urgentShifts,
         willingToRelocate: card.willingToRelocate,
         preferredIndustries: card.preferredIndustries ?? '',
-        contactPreference: (card.contactPreference as AvailabilityCard['contactPreference']) ?? '',
+        contactPreference: card.contactPreference ?? 'in_app',
         published: publishOverride ?? card.published,
       });
       setCard({ ...next, photoDocumentId: photoId });

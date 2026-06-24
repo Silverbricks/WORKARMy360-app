@@ -6,6 +6,8 @@ import { Alert, Button, Card, Field, Icon, Input, cn } from '@workarmy/ui';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/form';
 
+const digits = (v: string | null) => (v ?? '').replace(/\D/g, '');
+
 function checklist(w: WorkReadiness) {
   const idOk = w.engagement === 'contract' ? /^\d{11}$/.test(w.abn ?? '') : (w.tfn ?? '').length >= 8;
   return {
@@ -45,13 +47,13 @@ export function WorkReadinessSection() {
     try {
       const next = await api.workReadiness.update({
         engagement: (w.engagement ?? 'employee') as Engagement,
-        tfn: w.tfn ?? '',
-        abn: w.abn ?? '',
+        tfn: digits(w.tfn),
+        abn: digits(w.abn),
         hasSuper: w.hasSuper,
         superFund: w.superFund ?? '',
         superMember: w.superMember ?? '',
-        bankBsb: w.bankBsb ?? '',
-        bankAccount: w.bankAccount ?? '',
+        bankBsb: digits(w.bankBsb),
+        bankAccount: digits(w.bankAccount),
         noCashAck: w.noCashAck,
         bankLater: w.bankLater,
       });
