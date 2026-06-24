@@ -3,6 +3,7 @@ import { SectionStub } from '@/components/dashboard/SectionStub';
 import { JobsApplicationsSection } from '@/components/dashboard/JobsApplicationsSection';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
 import { PreferencesSection } from '@/components/dashboard/PreferencesSection';
+import { QualificationsSection } from '@/components/dashboard/QualificationsSection';
 import { getSection, STUB_SLUGS } from '@/lib/dashboard-sections';
 
 // Only the known sections are valid; anything else 404s. Fully static.
@@ -23,6 +24,7 @@ export default async function DashboardSectionPage({
   // Live sections; the rest are shells.
   if (data.slug === 'profile') return <ProfileSection />;
   if (data.slug === 'preferences') return <PreferencesSection />;
+  if (data.slug === 'qualifications') return <QualificationsSection />;
   if (data.slug === 'jobs') return <JobsApplicationsSection />;
   return <SectionStub section={data} />;
 }

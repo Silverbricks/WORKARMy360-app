@@ -82,25 +82,37 @@ export class AdminService {
   async verifications(status: VerificationStatus): Promise<VerificationItem[]> {
     const rows = await this.prisma.verification.findMany({
       where: { status },
-      include: { organisation: true },
+      include: { organisation: true, person: true, credential: true },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
-    return rows.map((v) => ({
-      id: v.id,
-      status: v.status,
-      subject: v.organisation
+    return rows.map((v) => {
+      const subject: VerificationItem['subject'] = v.organisation
         ? {
             kind: 'organisation' as const,
             id: v.organisation.id,
             waId: v.organisation.waId,
             name: v.organisation.name,
           }
-        : { kind: 'organisation' as const, id: '', waId: '', name: '(unknown)' },
-      reviewNote: v.reviewNote,
-      reviewedAt: v.reviewedAt ? v.reviewedAt.toISOString() : null,
-      createdAt: v.createdAt.toISOString(),
-    }));
+        : v.person
+          ? {
+              kind: 'person' as const,
+              id: v.person.id,
+              waId: v.person.waId,
+              name:
+                `${v.person.firstName ?? ''} ${v.person.lastName ?? ''}`.trim() ||
+                (v.credential ? v.credential.type : '(person)'),
+            }
+          : { kind: 'organisation' as const, id: '', waId: '', name: '(unknown)' };
+      return {
+        id: v.id,
+        status: v.status,
+        subject,
+        reviewNote: v.reviewNote,
+        reviewedAt: v.reviewedAt ? v.reviewedAt.toISOString() : null,
+        createdAt: v.createdAt.toISOString(),
+      };
+    });
   }
 
   async review(

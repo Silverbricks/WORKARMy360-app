@@ -89,6 +89,20 @@ export const PersonPreferencesUpdateSchema = z.object({
   willingToRelocate: z.boolean().optional(),
 });
 
+// --- credentials & verification --------------------------------------------
+
+export const CredentialInputSchema = z.object({
+  type: z.string().trim().min(1, 'Required').max(60),
+  identifier: optionalText(120),
+  issuer: optionalText(120),
+  expiresAt: optionalText(10),
+  documentId: optionalText(40),
+});
+
+export const VerificationRequestSchema = z.object({
+  credentialId: z.string().trim().min(1, 'Required'),
+});
+
 // --- jobs ------------------------------------------------------------------
 
 export const JobInputSchema = z.object({
@@ -138,6 +152,8 @@ export type ContactInputData = z.infer<typeof ContactInputSchema>;
 export type PersonProfileUpdateInput = z.infer<typeof PersonProfileUpdateSchema>;
 export type WorkExperienceInputData = z.infer<typeof WorkExperienceInputSchema>;
 export type PersonPreferencesUpdateInput = z.infer<typeof PersonPreferencesUpdateSchema>;
+export type CredentialInputData = z.infer<typeof CredentialInputSchema>;
+export type VerificationRequestData = z.infer<typeof VerificationRequestSchema>;
 export type JobInputData = z.infer<typeof JobInputSchema>;
 export type JobBrowseQueryData = z.infer<typeof JobBrowseQuerySchema>;
 export type ApplyInputData = z.infer<typeof ApplyInputSchema>;

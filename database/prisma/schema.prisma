@@ -194,6 +194,7 @@ model Person {
   savedJobs      SavedJob[]
   documents      Document[]
   credentials    Credential[]
+  verifications  Verification[]
 
   @@map("persons")
 }
@@ -472,6 +473,7 @@ model Verification {
   createdAt        DateTime           @default(now()) @map("created_at")
 
   organisation Organisation? @relation(fields: [subjectOrgId], references: [id], onDelete: Cascade)
+  person       Person?       @relation(fields: [subjectPersonId], references: [id], onDelete: Cascade)
   credential   Credential?   @relation(fields: [credentialId], references: [id], onDelete: SetNull)
 
   @@index([status])

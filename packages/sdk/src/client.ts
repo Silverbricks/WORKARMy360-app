@@ -2,6 +2,7 @@ import { HttpClient, type HttpClientOptions } from './http';
 import { createAuthClient } from './endpoints/auth';
 import { createPersonsClient } from './endpoints/persons';
 import { createFilesClient } from './endpoints/files';
+import { createCredentialsClient } from './endpoints/credentials';
 import { createOrganisationsClient } from './endpoints/organisations';
 import { createJobsClient } from './endpoints/jobs';
 import { createApplicationsClient } from './endpoints/applications';
@@ -17,6 +18,7 @@ export function createClient(opts: WorkArmyClientOptions) {
     auth: createAuthClient(http),
     persons: createPersonsClient(http),
     files: createFilesClient(http),
+    credentials: createCredentialsClient(http),
     organisations: createOrganisationsClient(http),
     jobs: createJobsClient(http),
     applications: createApplicationsClient(http),
