@@ -178,6 +178,31 @@ export const FeedbackInputSchema = z.object({
   message: z.string().trim().min(2, 'Message is required').max(2000),
 });
 
+// --- support, messages, settings -------------------------------------------
+
+export const SupportTicketInputSchema = z.object({
+  category: z.string().trim().min(1).max(40),
+  subject: z.string().trim().min(2, 'Subject is required').max(160),
+  body: z.string().trim().min(2, 'Please describe the issue').max(4000),
+});
+
+export const UserSettingsUpdateSchema = z.object({
+  notifyJobs: z.boolean().optional(),
+  notifyMessages: z.boolean().optional(),
+  notifyCompliance: z.boolean().optional(),
+  profilePublic: z.boolean().optional(),
+  language: optionalText(20),
+});
+
+export const StartConversationSchema = z.object({
+  orgWaId: z.string().trim().min(1, 'Organisation WA ID is required'),
+  body: z.string().trim().min(1, 'Message is required').max(4000),
+});
+
+export const SendMessageSchema = z.object({
+  body: z.string().trim().min(1, 'Message is required').max(4000),
+});
+
 // --- jobs ------------------------------------------------------------------
 
 export const JobInputSchema = z.object({
@@ -240,6 +265,10 @@ export type PayslipInputData = z.infer<typeof PayslipInputSchema>;
 export type BecomeProviderData = z.infer<typeof BecomeProviderSchema>;
 export type GroupInputData = z.infer<typeof GroupInputSchema>;
 export type FeedbackInputData = z.infer<typeof FeedbackInputSchema>;
+export type SupportTicketInputData = z.infer<typeof SupportTicketInputSchema>;
+export type UserSettingsUpdateData = z.infer<typeof UserSettingsUpdateSchema>;
+export type StartConversationData = z.infer<typeof StartConversationSchema>;
+export type SendMessageData = z.infer<typeof SendMessageSchema>;
 export type JobInputData = z.infer<typeof JobInputSchema>;
 export type JobBrowseQueryData = z.infer<typeof JobBrowseQuerySchema>;
 export type ApplyInputData = z.infer<typeof ApplyInputSchema>;

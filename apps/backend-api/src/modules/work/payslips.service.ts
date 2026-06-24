@@ -4,6 +4,7 @@ import type { Payslip as DbPayslip } from '@workarmy/database';
 import type { PayslipInputData } from '@workarmy/validation';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MembershipService } from '../../common/membership/membership.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ApiException } from '../../common/errors/api-exception';
 
 const personName = (p: { firstName: string | null; lastName: string | null; waId: string }): string =>
@@ -14,6 +15,7 @@ export class PayslipsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly membership: MembershipService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async mine(userId: string): Promise<Payslip[]> {
@@ -56,6 +58,12 @@ export class PayslipsService {
         netPay: input.netPay ?? 0,
       },
       include: { organisation: true },
+    });
+    await this.notifications.notify(person.userId, {
+      kind: 'payslip',
+      title: 'New payslip',
+      body: `${p.organisation.name} issued a payslip for ${input.periodStart} – ${input.periodEnd}.`,
+      link: '/dashboard/work',
     });
     return { ...toPayslip(p), org: { name: p.organisation.name } };
   }

@@ -7,6 +7,8 @@ import type {
   PersonDetail,
   PersonPreferences,
   PersonProfile,
+  UserSettings,
+  UserSettingsUpdate,
   WorkExperience,
 } from '@workarmy/types';
 import type {
@@ -124,6 +126,40 @@ export class PersonsService {
       map.set(o.id, e);
     }
     return [...map.values()];
+  }
+
+  async getSettings(userId: string): Promise<UserSettings> {
+    const s = await this.prisma.userSettings.findUnique({ where: { userId } });
+    return s
+      ? {
+          notifyJobs: s.notifyJobs,
+          notifyMessages: s.notifyMessages,
+          notifyCompliance: s.notifyCompliance,
+          profilePublic: s.profilePublic,
+          language: s.language,
+        }
+      : {
+          notifyJobs: true,
+          notifyMessages: true,
+          notifyCompliance: true,
+          profilePublic: false,
+          language: 'en-AU',
+        };
+  }
+
+  async updateSettings(userId: string, input: UserSettingsUpdate): Promise<UserSettings> {
+    const s = await this.prisma.userSettings.upsert({
+      where: { userId },
+      update: { ...input },
+      create: { userId, ...input },
+    });
+    return {
+      notifyJobs: s.notifyJobs,
+      notifyMessages: s.notifyMessages,
+      notifyCompliance: s.notifyCompliance,
+      profilePublic: s.profilePublic,
+      language: s.language,
+    };
   }
 
   async setPhoto(userId: string, documentId: string): Promise<PersonProfile> {

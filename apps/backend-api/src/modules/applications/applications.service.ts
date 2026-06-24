@@ -11,6 +11,7 @@ import type {
 import { PrismaService } from '../../prisma/prisma.service';
 import { MembershipService } from '../../common/membership/membership.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ApiException } from '../../common/errors/api-exception';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class ApplicationsService {
     private readonly prisma: PrismaService,
     private readonly membership: MembershipService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async apply(userId: string, jobId: string, input: ApplyInput): Promise<JobApplication> {
@@ -82,7 +84,7 @@ export class ApplicationsService {
     const { orgId } = await this.membership.requireOrg(userId);
     const app = await this.prisma.jobApplication.findUnique({
       where: { id },
-      include: { job: { select: { orgId: true } } },
+      include: { job: { select: { orgId: true, title: true } }, person: { select: { userId: true } } },
     });
     if (!app || app.job.orgId !== orgId) throw ApiException.notFound('Application not found.');
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -101,6 +103,12 @@ export class ApplicationsService {
     await this.audit.record('APPLICATION_STAGE_CHANGED', {
       userId,
       metadata: { applicationId: id, toStage: input.toStage },
+    });
+    await this.notifications.notify(app.person.userId, {
+      kind: input.toStage === 'INTERVIEW' ? 'interview' : 'application',
+      title: `Application ${input.toStage.toLowerCase()}`,
+      body: `Your application for "${app.job.title}" is now ${input.toStage}.`,
+      link: '/dashboard/jobs',
     });
     return toApplication(updated);
   }

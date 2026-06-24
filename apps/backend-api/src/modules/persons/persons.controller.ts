@@ -4,6 +4,7 @@ import {
   PersonPreferencesUpdateSchema,
   PersonProfileUpdateSchema,
   PhotoUpdateSchema,
+  UserSettingsUpdateSchema,
   WorkExperienceInputSchema,
 } from '@workarmy/validation';
 import type {
@@ -14,6 +15,7 @@ import type {
   PersonDetail,
   PersonPreferences,
   PersonProfile,
+  UserSettings,
   WorkExperience,
 } from '@workarmy/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -23,6 +25,7 @@ import type {
   BecomeProviderData,
   PersonPreferencesUpdateInput,
   PersonProfileUpdateInput,
+  UserSettingsUpdateData,
   WorkExperienceInputData,
 } from './persons.types';
 
@@ -62,6 +65,19 @@ export class PersonsController {
     @Body(new ZodValidationPipe(PhotoUpdateSchema)) dto: { documentId: string },
   ): Promise<PersonProfile> {
     return this.persons.setPhoto(user.sub, dto.documentId);
+  }
+
+  @Get('me/settings')
+  getSettings(@CurrentUser() user: { sub: string }): Promise<UserSettings> {
+    return this.persons.getSettings(user.sub);
+  }
+
+  @Put('me/settings')
+  updateSettings(
+    @CurrentUser() user: { sub: string },
+    @Body(new ZodValidationPipe(UserSettingsUpdateSchema)) dto: UserSettingsUpdateData,
+  ): Promise<UserSettings> {
+    return this.persons.updateSettings(user.sub, dto);
   }
 
   @Get('me/employers')

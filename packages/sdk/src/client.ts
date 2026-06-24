@@ -6,6 +6,7 @@ import { createCredentialsClient } from './endpoints/credentials';
 import { createResumeClient } from './endpoints/resume';
 import { createWorkClient } from './endpoints/work';
 import { createCommunityClient } from './endpoints/community';
+import { createSupportClient } from './endpoints/support';
 import { createOrganisationsClient } from './endpoints/organisations';
 import { createJobsClient } from './endpoints/jobs';
 import { createApplicationsClient } from './endpoints/applications';
@@ -25,6 +26,7 @@ export function createClient(opts: WorkArmyClientOptions) {
     resume: createResumeClient(http),
     work: createWorkClient(http),
     community: createCommunityClient(http),
+    support: createSupportClient(http),
     organisations: createOrganisationsClient(http),
     jobs: createJobsClient(http),
     applications: createApplicationsClient(http),
