@@ -80,6 +80,11 @@ export class PersonsController {
     return this.persons.updateSettings(user.sub, dto);
   }
 
+  @Post('me/complete')
+  markComplete(@CurrentUser() user: { sub: string }): Promise<OkResponse> {
+    return this.persons.markComplete(user.sub);
+  }
+
   @Get('me/employers')
   employers(@CurrentUser() user: { sub: string }): Promise<EmployerSummary[]> {
     return this.persons.employers(user.sub);

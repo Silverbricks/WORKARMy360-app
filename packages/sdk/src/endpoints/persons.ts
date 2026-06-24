@@ -23,6 +23,7 @@ export function createPersonsClient(http: HttpClient) {
       http.request<PersonPreferences>('/persons/me/preferences', { method: 'PUT', body }),
     setPhoto: (documentId: string) =>
       http.request<PersonProfile>('/persons/me/photo', { method: 'PUT', body: { documentId } }),
+    complete: () => http.request<OkResponse>('/persons/me/complete', { method: 'POST' }),
     employers: () => http.request<EmployerSummary[]>('/persons/me/employers'),
     becomeProvider: (body: BecomeProviderInput) =>
       http.request<OrgSummary>('/persons/me/become-provider', { method: 'POST', body }),

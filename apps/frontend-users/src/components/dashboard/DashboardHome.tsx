@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Card, Icon, formatCurrencyAUD, t, type IconName } from '@workarmy/ui';
+import { Button, Card, Icon, formatCurrencyAUD, t, type IconName } from '@workarmy/ui';
 import { api } from '@/lib/api';
 import { useMe } from './DashboardShell';
 
@@ -129,6 +129,31 @@ export function DashboardHome() {
           </span>
         </div>
       </Card>
+
+      {/* Profile gate */}
+      {!person?.profileComplete ? (
+        <Card className="p-5" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, white)' }}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-medium text-[#1E293B]">Complete your profile to unlock your dashboard</p>
+              <p className="mt-0.5 text-sm text-[#64748B]">
+                Jobs, work &amp; earnings, messages and more stay locked until your profile is done.
+              </p>
+            </div>
+            <Link href="/dashboard/profile">
+              <Button>Complete my profile →</Button>
+            </Link>
+          </div>
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#E5E7EB]">
+            <div className="h-full rounded-full" style={{ width: `${completion}%`, backgroundColor: 'var(--accent)' }} />
+          </div>
+        </Card>
+      ) : (
+        <Card className="flex items-center gap-2.5 p-4" style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}>
+          <span className="text-[#16A34A]"><Icon name="check" size={18} /></span>
+          <p className="text-sm font-medium text-[#166534]">Profile complete — all features unlocked.</p>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Profile completion */}

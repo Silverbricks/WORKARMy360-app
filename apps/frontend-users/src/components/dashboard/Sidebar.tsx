@@ -4,9 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon, cn, t } from '@workarmy/ui';
 import { DASHBOARD_SECTIONS, sectionHref } from '@/lib/dashboard-sections';
+import { useMe } from './DashboardShell';
 
 export function Sidebar({ onLogout }: { onLogout: () => void }) {
   const pathname = usePathname();
+  const me = useMe();
+  const complete = me?.person?.profileComplete ?? false;
 
   return (
     <aside className="md:sticky md:top-20 md:self-start">
@@ -14,6 +17,8 @@ export function Sidebar({ onLogout }: { onLogout: () => void }) {
         {DASHBOARD_SECTIONS.map((section) => {
           const href = sectionHref(section.slug);
           const active = section.slug === 'home' ? pathname === '/dashboard' : pathname === href;
+          // Everything except Home + My Profile is locked until the profile is complete.
+          const locked = !complete && section.slug !== 'home' && section.slug !== 'profile';
           return (
             <Link
               key={section.slug}
@@ -22,6 +27,7 @@ export function Sidebar({ onLogout }: { onLogout: () => void }) {
               className={cn(
                 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition',
                 active ? 'font-semibold' : 'text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#1E293B]',
+                locked && !active && 'opacity-55',
               )}
               style={
                 active
@@ -31,6 +37,7 @@ export function Sidebar({ onLogout }: { onLogout: () => void }) {
             >
               <Icon name={section.icon} size={18} />
               <span className="truncate">{t(section.navLabelKey)}</span>
+              {locked ? <Icon name="lock" size={13} className="ml-auto text-[#94A3B8]" /> : null}
             </Link>
           );
         })}

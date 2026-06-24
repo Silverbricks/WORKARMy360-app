@@ -128,6 +128,12 @@ export class PersonsService {
     return [...map.values()];
   }
 
+  async markComplete(userId: string): Promise<{ ok: true }> {
+    const personId = await this.membership.requirePerson(userId);
+    await this.prisma.person.update({ where: { id: personId }, data: { profileComplete: true } });
+    return { ok: true as const };
+  }
+
   async getSettings(userId: string): Promise<UserSettings> {
     const s = await this.prisma.userSettings.findUnique({ where: { userId } });
     return s
