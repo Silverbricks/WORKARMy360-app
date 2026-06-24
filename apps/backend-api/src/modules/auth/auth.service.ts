@@ -34,6 +34,14 @@ export interface AuthTokens {
   refresh: IssuedRefresh;
 }
 
+/**
+ * Email verification is only enforced when a real email sender is configured.
+ * With the console provider (no outbound email) accounts are auto-activated, so
+ * the platform is usable; switching EMAIL_PROVIDER to 'resend' turns real
+ * verification back on for everyone automatically.
+ */
+const VERIFICATION_REQUIRED = env.EMAIL_PROVIDER === 'resend';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -62,8 +70,8 @@ export class AuthService {
     const existing = await this.users.findByEmail(dto.email);
     if (existing) {
       // Registered but never verified → resend a fresh code and send them to the
-      // verify screen instead of a dead-end error.
-      if (!existing.emailVerified) {
+      // verify screen instead of a dead-end error (only when verification applies).
+      if (VERIFICATION_REQUIRED && !existing.emailVerified) {
         const otpExpiresAt = await this.otp.issue(existing);
         await this.audit.record('OTP_SENT', { userId: existing.id, ip: ctx.ip });
         throw ApiException.conflict(
@@ -81,7 +89,15 @@ export class AuthService {
     const isProvider = PROVIDER_ACCOUNT_TYPES.includes(dto.accountType);
 
     const { user, person, org } = await this.prisma.$transaction(async (tx) => {
-      const createdUser = await tx.user.create({ data: { email: dto.email, passwordHash } });
+      const createdUser = await tx.user.create({
+        data: {
+          email: dto.email,
+          passwordHash,
+          // No email sender → activate immediately so the account is usable.
+          emailVerified: !VERIFICATION_REQUIRED,
+          status: VERIFICATION_REQUIRED ? 'PENDING' : 'ACTIVE',
+        },
+      });
       await tx.authIdentity.create({
         data: { userId: createdUser.id, provider: 'LOCAL', providerUserId: dto.email },
       });
@@ -114,8 +130,6 @@ export class AuthService {
       return { user: createdUser, person: createdPerson, org: createdOrg };
     });
 
-    const otpExpiresAt = await this.otp.issue(user);
-
     await this.audit.record('USER_REGISTERED', {
       userId: user.id,
       ip: ctx.ip,
@@ -129,9 +143,19 @@ export class AuthService {
         metadata: { orgId: org.id, waId: org.waId },
       });
     }
-    await this.audit.record('OTP_SENT', { userId: user.id, ip: ctx.ip });
 
-    return { userId: user.id, waId: person.waId, otpExpiresAt: otpExpiresAt.toISOString() };
+    if (!VERIFICATION_REQUIRED) {
+      return { userId: user.id, waId: person.waId, requiresVerification: false, otpExpiresAt: null };
+    }
+
+    const otpExpiresAt = await this.otp.issue(user);
+    await this.audit.record('OTP_SENT', { userId: user.id, ip: ctx.ip });
+    return {
+      userId: user.id,
+      waId: person.waId,
+      requiresVerification: true,
+      otpExpiresAt: otpExpiresAt.toISOString(),
+    };
   }
 
   async resendOtp(dto: ResendOtpInput) {
@@ -195,7 +219,7 @@ export class AuthService {
       throw ApiException.unauthorized('Incorrect email or password.', 'INVALID_CREDENTIALS');
     }
 
-    if (!user.emailVerified) {
+    if (VERIFICATION_REQUIRED && !user.emailVerified) {
       throw ApiException.unauthorized('Please verify your email to continue.', 'EMAIL_NOT_VERIFIED');
     }
 

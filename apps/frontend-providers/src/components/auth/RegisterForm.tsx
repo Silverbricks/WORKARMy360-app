@@ -6,7 +6,7 @@ import { Alert, Button, Field, Input, PasswordInput } from '@workarmy/ui';
 import { PROVIDER_ACCOUNT_TYPES, type AccountType } from '@workarmy/types';
 import { RegisterSchema } from '@workarmy/validation';
 import { WorkArmyApiError } from '@workarmy/sdk';
-import { api } from '@/lib/api';
+import { api, setAccessToken, setAuthHint } from '@/lib/api';
 import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '@/lib/form';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -53,8 +53,16 @@ export function RegisterForm() {
     setErrors({});
     setSubmitting(true);
     try {
-      await api.auth.register(parsed.data);
-      router.push(`/verify?email=${encodeURIComponent(parsed.data.email)}`);
+      const res = await api.auth.register(parsed.data);
+      if (res.requiresVerification) {
+        router.push(`/verify?email=${encodeURIComponent(parsed.data.email)}`);
+        return;
+      }
+      // No email verification needed → log in straight away and go to the dashboard.
+      const auth = await api.auth.login({ email: parsed.data.email, password: parsed.data.password });
+      setAccessToken(auth.accessToken);
+      setAuthHint();
+      router.push('/dashboard');
     } catch (err) {
       // An unverified account already exists — a fresh code was just sent; finish verifying.
       if (err instanceof WorkArmyApiError && err.code === 'EMAIL_NOT_VERIFIED') {

@@ -17,8 +17,11 @@ export interface RegisterRequest {
 export interface RegisterResponse {
   userId: string;
   waId: string;
-  /** ISO timestamp the verification OTP expires at. */
-  otpExpiresAt: string;
+  /** True when the account must verify its email before logging in (real email
+   * sender configured). When false the account is active immediately. */
+  requiresVerification: boolean;
+  /** ISO timestamp the verification OTP expires at (null when not required). */
+  otpExpiresAt: string | null;
 }
 
 export interface VerifyEmailRequest {
