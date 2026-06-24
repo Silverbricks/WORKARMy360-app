@@ -60,6 +60,21 @@ export class PersonsService {
     };
   }
 
+  async setPhoto(userId: string, documentId: string): Promise<PersonProfile> {
+    const personId = await this.membership.requirePerson(userId);
+    const doc = await this.prisma.document.findFirst({
+      where: { id: documentId, ownerPersonId: personId },
+      select: { id: true },
+    });
+    if (!doc) throw ApiException.badRequest('VALIDATION_ERROR', 'Document not found.');
+    const profile = await this.prisma.personProfile.upsert({
+      where: { personId },
+      update: { photoDocumentId: documentId },
+      create: { personId, photoDocumentId: documentId, completeness: 0 },
+    });
+    return toProfile(profile);
+  }
+
   async getPreferences(userId: string): Promise<PersonPreferences> {
     const personId = await this.membership.requirePerson(userId);
     const profile = await this.prisma.personProfile.findUnique({ where: { personId } });
@@ -173,6 +188,7 @@ function toExperienceData(input: Partial<WorkExperienceInputData>) {
 function toProfile(p: DbPersonProfile): PersonProfile {
   return {
     photoUrl: p.photoUrl,
+    photoDocumentId: p.photoDocumentId,
     dateOfBirth: p.dateOfBirth,
     gender: p.gender,
     nationality: p.nationality,

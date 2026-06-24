@@ -18,6 +18,8 @@ export function createPersonsClient(http: HttpClient) {
     getPreferences: () => http.request<PersonPreferences>('/persons/me/preferences'),
     updatePreferences: (body: PersonPreferencesUpdate) =>
       http.request<PersonPreferences>('/persons/me/preferences', { method: 'PUT', body }),
+    setPhoto: (documentId: string) =>
+      http.request<PersonProfile>('/persons/me/photo', { method: 'PUT', body: { documentId } }),
     addExperience: (body: WorkExperienceInput) =>
       http.request<WorkExperience>('/persons/me/experience', { method: 'POST', body }),
     updateExperience: (id: string, body: Partial<WorkExperienceInput>) =>

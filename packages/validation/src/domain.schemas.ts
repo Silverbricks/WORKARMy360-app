@@ -103,6 +103,22 @@ export const VerificationRequestSchema = z.object({
   credentialId: z.string().trim().min(1, 'Required'),
 });
 
+// --- resume & photo --------------------------------------------------------
+
+export const ResumeUpdateSchema = z.object({
+  headline: optionalText(160),
+  summary: z.string().trim().max(4000).optional(),
+  coverLetters: z
+    .array(z.object({ title: z.string().trim().max(120), body: z.string().trim().max(5000) }))
+    .max(10)
+    .optional(),
+  documentId: z.string().trim().max(40).nullable().optional(),
+});
+
+export const ResumeShareSchema = z.object({ isPublic: z.boolean() });
+
+export const PhotoUpdateSchema = z.object({ documentId: z.string().trim().min(1).max(40) });
+
 // --- jobs ------------------------------------------------------------------
 
 export const JobInputSchema = z.object({
@@ -154,6 +170,9 @@ export type WorkExperienceInputData = z.infer<typeof WorkExperienceInputSchema>;
 export type PersonPreferencesUpdateInput = z.infer<typeof PersonPreferencesUpdateSchema>;
 export type CredentialInputData = z.infer<typeof CredentialInputSchema>;
 export type VerificationRequestData = z.infer<typeof VerificationRequestSchema>;
+export type ResumeUpdateData = z.infer<typeof ResumeUpdateSchema>;
+export type ResumeShareData = z.infer<typeof ResumeShareSchema>;
+export type PhotoUpdateData = z.infer<typeof PhotoUpdateSchema>;
 export type JobInputData = z.infer<typeof JobInputSchema>;
 export type JobBrowseQueryData = z.infer<typeof JobBrowseQuerySchema>;
 export type ApplyInputData = z.infer<typeof ApplyInputSchema>;

@@ -5,6 +5,7 @@ export * from './auth';
 export * from './person';
 export * from './document';
 export * from './credential';
+export * from './resume';
 export * from './organisation';
 export * from './job';
 export * from './application';

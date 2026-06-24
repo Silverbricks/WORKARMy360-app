@@ -188,6 +188,7 @@ model Person {
 
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   profile        PersonProfile?
+  resume         Resume?
   experiences    WorkExperience[]
   orgMemberships OrgMember[]
   applications   JobApplication[]
@@ -206,7 +207,8 @@ model Person {
 model PersonProfile {
   personId       String   @id @map("person_id") @db.Uuid
   // personal
-  photoUrl       String?  @map("photo_url")
+  photoUrl        String?  @map("photo_url")
+  photoDocumentId String?  @map("photo_document_id") // uploaded profile photo (Document id)
   dateOfBirth    String?  @map("date_of_birth")
   gender         String?
   nationality    String?
@@ -242,6 +244,23 @@ model PersonProfile {
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@map("person_profiles")
+}
+
+/// A seeker's resume — headline/summary + cover letters + an uploaded file, with
+/// a shareable public token. documentId references a Document (no FK — soft link).
+model Resume {
+  personId     String   @id @map("person_id") @db.Uuid
+  documentId   String?  @map("document_id") @db.Uuid
+  headline     String?
+  summary      String?
+  coverLetters Json?    @map("cover_letters") // [{ title, body }]
+  shareToken   String   @unique @map("share_token")
+  isPublic     Boolean  @default(false) @map("is_public")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@map("resumes")
 }
 
 /// A job a seeker has saved/bookmarked (join row — like JobApplication, no WA ID).

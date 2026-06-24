@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/
 import {
   PersonPreferencesUpdateSchema,
   PersonProfileUpdateSchema,
+  PhotoUpdateSchema,
   WorkExperienceInputSchema,
 } from '@workarmy/validation';
 import type {
@@ -48,6 +49,14 @@ export class PersonsController {
     @Body(new ZodValidationPipe(PersonPreferencesUpdateSchema)) dto: PersonPreferencesUpdateInput,
   ): Promise<PersonPreferences> {
     return this.persons.updatePreferences(user.sub, dto);
+  }
+
+  @Put('me/photo')
+  setPhoto(
+    @CurrentUser() user: { sub: string },
+    @Body(new ZodValidationPipe(PhotoUpdateSchema)) dto: { documentId: string },
+  ): Promise<PersonProfile> {
+    return this.persons.setPhoto(user.sub, dto.documentId);
   }
 
   @Post('me/experience')

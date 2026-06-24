@@ -7,6 +7,7 @@ export type HireStatus = 'AVAILABLE_NOW' | 'AVAILABLE_SOON' | 'OPEN' | 'NOT_LOOK
 export interface PersonProfile {
   // personal
   photoUrl: string | null;
+  photoDocumentId: string | null;
   dateOfBirth: string | null;
   gender: string | null;
   nationality: string | null;
