@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { CredentialView, MyApplication, PersonDetail, WorkerShift } from '@workarmy/types';
 import { Button, Card, Icon, formatCurrencyAUD, t, type IconName } from '@workarmy/ui';
 import { api } from '@/lib/api';
-import { useMe } from './DashboardShell';
+import { useMe, useWorkReady } from './DashboardShell';
 import { WorkerIdCard } from './WorkerIdCard';
 
 const QUICK_ACTIONS: { label: string; href: string; icon: IconName }[] = [
@@ -66,6 +66,7 @@ export function DashboardHome() {
     `${person?.firstName?.[0] ?? ''}${person?.lastName?.[0] ?? ''}`.toUpperCase() || 'WA';
   const completion = person?.profileCompleteness ?? (person?.profileComplete ? 100 : 0);
   const profileComplete = person?.profileComplete ?? false;
+  const workReady = useWorkReady();
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [shifts, setShifts] = useState<WorkerShift[]>([]);
@@ -177,6 +178,36 @@ export function DashboardHome() {
           <p className="text-sm font-medium text-[#166534]">Profile verified — you&apos;re ready to apply for jobs.</p>
         </Card>
       )}
+
+      {/* Work Readiness nudge (Gate 3 — needed to accept shifts / apply) */}
+      {profileComplete && !workReady ? (
+        <Card className="flex flex-wrap items-center justify-between gap-3 p-5" style={{ borderColor: '#EAD3A1', backgroundColor: '#FBF1DD' }}>
+          <div>
+            <p className="font-medium text-[#854D0E]">Complete Work Readiness to accept work</p>
+            <p className="mt-0.5 text-sm text-[#854D0E]">
+              Add your TFN/ABN, super and bank details (and the no-cash acknowledgement) before
+              accepting a shift or applying.
+            </p>
+          </div>
+          <Link href="/dashboard/work-readiness">
+            <Button>Complete Work Readiness →</Button>
+          </Link>
+        </Card>
+      ) : null}
+
+      {/* Get Job Faster CTA */}
+      <Card className="flex flex-wrap items-center justify-between gap-3 p-5" style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 7%, white)', borderColor: 'color-mix(in srgb, var(--accent) 30%, white)' }}>
+        <div className="flex items-center gap-3">
+          <span className="text-[color:var(--accent)]"><Icon name="zap" size={22} /></span>
+          <div>
+            <p className="font-medium text-[#1E293B]">Get found faster</p>
+            <p className="text-sm text-[#64748B]">Publish your availability card so employers can hire you directly.</p>
+          </div>
+        </div>
+        <Link href="/dashboard/get-job-faster">
+          <Button variant="secondary">Build my card →</Button>
+        </Link>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard title={t('dashboard.widget.profileCompletion')}>

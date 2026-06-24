@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { allocateWaId } from '@workarmy/database';
 import type {
+  AvailabilityCard,
   BecomeProviderInput,
   EmployerSummary,
   OrgSummary,
@@ -12,6 +13,7 @@ import type {
   WorkExperience,
 } from '@workarmy/types';
 import type {
+  AvailabilityCardUpdateData,
   DbPersonProfile,
   DbWorkExperience,
   PersonPreferencesUpdateInput,
@@ -142,6 +144,27 @@ export class PersonsService {
     const personId = await this.membership.requirePerson(userId);
     await this.prisma.person.update({ where: { id: personId }, data: { profileComplete: true } });
     return { ok: true as const };
+  }
+
+  async getAvailabilityCard(userId: string): Promise<AvailabilityCard> {
+    const personId = await this.membership.requirePerson(userId);
+    const profile = await this.prisma.personProfile.findUnique({ where: { personId } });
+    return profile ? toCard(profile) : emptyCard();
+  }
+
+  async updateAvailabilityCard(
+    userId: string,
+    input: AvailabilityCardUpdateData,
+  ): Promise<AvailabilityCard> {
+    const personId = await this.membership.requirePerson(userId);
+    const data = buildCardData(input);
+    // Card is NOT part of completeness (Principle 4) — leave it untouched.
+    const profile = await this.prisma.personProfile.upsert({
+      where: { personId },
+      update: data,
+      create: { personId, completeness: 0, ...data },
+    });
+    return toCard(profile);
   }
 
   async getSettings(userId: string): Promise<UserSettings> {
@@ -325,6 +348,12 @@ function toProfile(p: DbPersonProfile): PersonProfile {
     availableDays: p.availableDays,
     availableHours: p.availableHours,
     hireStatus: p.hireStatus,
+    cardQualification: p.cardQualification,
+    cardWorkType: p.cardWorkType,
+    cardAvailableFrom: p.cardAvailableFrom,
+    cardUrgentShifts: p.cardUrgentShifts,
+    cardContactPreference: p.cardContactPreference,
+    cardPublished: p.cardPublished,
     completeness: p.completeness,
   };
 }
@@ -351,6 +380,56 @@ function emptyPreferences(): PersonPreferences {
     preferredPayMin: null,
     willingToRelocate: false,
   };
+}
+
+function toCard(p: DbPersonProfile): AvailabilityCard {
+  return {
+    photoDocumentId: p.photoDocumentId,
+    qualification: p.cardQualification,
+    suburb: p.suburb,
+    state: p.state,
+    availability: p.availability,
+    workType: p.cardWorkType,
+    availableFrom: p.cardAvailableFrom,
+    urgentShifts: p.cardUrgentShifts,
+    willingToRelocate: p.willingToRelocate,
+    preferredIndustries: p.preferredIndustries,
+    contactPreference: p.cardContactPreference,
+    published: p.cardPublished,
+  };
+}
+
+function emptyCard(): AvailabilityCard {
+  return {
+    photoDocumentId: null,
+    qualification: null,
+    suburb: null,
+    state: null,
+    availability: null,
+    workType: null,
+    availableFrom: null,
+    urgentShifts: false,
+    willingToRelocate: false,
+    preferredIndustries: null,
+    contactPreference: null,
+    published: false,
+  };
+}
+
+function buildCardData(input: AvailabilityCardUpdateData) {
+  const data: Record<string, unknown> = {};
+  if (input.qualification !== undefined) data.cardQualification = input.qualification || null;
+  if (input.suburb !== undefined) data.suburb = input.suburb || null;
+  if (input.state !== undefined) data.state = input.state || null;
+  if (input.availability !== undefined) data.availability = input.availability || null;
+  if (input.workType !== undefined) data.cardWorkType = input.workType || null;
+  if (input.availableFrom !== undefined) data.cardAvailableFrom = input.availableFrom || null;
+  if (input.urgentShifts !== undefined) data.cardUrgentShifts = input.urgentShifts;
+  if (input.willingToRelocate !== undefined) data.willingToRelocate = input.willingToRelocate;
+  if (input.preferredIndustries !== undefined) data.preferredIndustries = input.preferredIndustries || null;
+  if (input.contactPreference !== undefined) data.cardContactPreference = input.contactPreference || null;
+  if (input.published !== undefined) data.cardPublished = input.published;
+  return data;
 }
 
 function toExperience(e: DbWorkExperience): WorkExperience {

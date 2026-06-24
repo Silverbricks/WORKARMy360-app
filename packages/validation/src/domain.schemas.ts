@@ -130,6 +130,67 @@ export const WorkLogInputSchema = z.object({
   note: optionalText(500),
 });
 
+// --- get-job-faster availability card --------------------------------------
+
+export const AvailabilityCardUpdateSchema = z.object({
+  qualification: optionalText(200),
+  suburb: optionalText(80),
+  state: optionalText(40),
+  availability: optionalText(40),
+  workType: z.enum(['hourly', 'weekly', 'contract', 'any']).optional().or(z.literal('')),
+  availableFrom: z.string().trim().max(10).optional().or(z.literal('')),
+  urgentShifts: z.boolean().optional(),
+  willingToRelocate: z.boolean().optional(),
+  preferredIndustries: optionalText(400),
+  contactPreference: z.enum(['in_app', 'phone', 'email']).optional().or(z.literal('')),
+  published: z.boolean().optional(),
+});
+
+// --- work readiness (Gate 3) + tax -----------------------------------------
+
+export const WorkReadinessUpdateSchema = z.object({
+  engagement: z.enum(['employee', 'contract']).optional(),
+  tfn: z.string().trim().regex(/^\d{8,9}$/, 'TFN must be 8–9 digits').optional().or(z.literal('')),
+  abn: z.string().trim().regex(/^\d{11}$/, 'ABN must be 11 digits').optional().or(z.literal('')),
+  hasSuper: z.boolean().optional(),
+  superFund: optionalText(120),
+  superMember: optionalText(60),
+  bankBsb: z.string().trim().regex(/^\d{6}$/, 'BSB must be 6 digits').optional().or(z.literal('')),
+  bankAccount: z.string().trim().regex(/^\d{5,10}$/, 'Account must be 5–10 digits').optional().or(z.literal('')),
+  noCashAck: z.boolean().optional(),
+  bankLater: z.boolean().optional(),
+});
+
+export const TaxLodgementInputSchema = z.object({
+  kind: z.enum(['personal', 'abn']),
+  financialYear: z.string().trim().regex(/^\d{4}-\d{2}$/, 'Use a year like 2024-25'),
+  note: optionalText(1000),
+});
+
+export const TaxShareInputSchema = z.object({
+  employer: z.string().trim().min(1, 'Employer is required').max(160),
+  passwordProtected: z.boolean().optional(),
+});
+
+// --- invoices --------------------------------------------------------------
+
+export const InvoiceLineItemSchema = z.object({
+  kind: z.enum(['hourly', 'piece']),
+  description: z.string().trim().min(1, 'Required').max(200),
+  qty: z.coerce.number().int().positive().max(100000),
+  rateCents: z.coerce.number().int().nonnegative().max(100000000),
+});
+
+export const InvoiceInputSchema = z.object({
+  number: optionalText(40),
+  clientName: z.string().trim().min(1, 'Client is required').max(160),
+  clientAbn: z.string().trim().regex(/^\d{11}$/, 'ABN must be 11 digits').optional().or(z.literal('')),
+  date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),
+  gst: z.boolean().optional(),
+  notes: optionalText(2000),
+  lineItems: z.array(InvoiceLineItemSchema).min(1, 'Add at least one line item').max(50),
+});
+
 // --- work & earnings -------------------------------------------------------
 
 export const ShiftInputSchema = z.object({
@@ -278,6 +339,12 @@ export type ResumeShareData = z.infer<typeof ResumeShareSchema>;
 export type PhotoUpdateData = z.infer<typeof PhotoUpdateSchema>;
 export type HireStatusUpdateData = z.infer<typeof HireStatusUpdateSchema>;
 export type WorkLogInputData = z.infer<typeof WorkLogInputSchema>;
+export type AvailabilityCardUpdateData = z.infer<typeof AvailabilityCardUpdateSchema>;
+export type WorkReadinessUpdateData = z.infer<typeof WorkReadinessUpdateSchema>;
+export type TaxLodgementInputData = z.infer<typeof TaxLodgementInputSchema>;
+export type TaxShareInputData = z.infer<typeof TaxShareInputSchema>;
+export type InvoiceLineItemData = z.infer<typeof InvoiceLineItemSchema>;
+export type InvoiceInputData = z.infer<typeof InvoiceInputSchema>;
 export type ShiftInputData = z.infer<typeof ShiftInputSchema>;
 export type AssignInputData = z.infer<typeof AssignInputSchema>;
 export type ClockInputData = z.infer<typeof ClockInputSchema>;

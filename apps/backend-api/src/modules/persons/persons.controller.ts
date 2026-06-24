@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import {
+  AvailabilityCardUpdateSchema,
   BecomeProviderSchema,
   HireStatusUpdateSchema,
   PersonPreferencesUpdateSchema,
@@ -9,6 +10,7 @@ import {
   WorkExperienceInputSchema,
 } from '@workarmy/validation';
 import type {
+  AvailabilityCard,
   BecomeProviderInput,
   EmployerSummary,
   OkResponse,
@@ -23,6 +25,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { PersonsService } from './persons.service';
 import type {
+  AvailabilityCardUpdateData,
   BecomeProviderData,
   PersonPreferencesUpdateInput,
   PersonProfileUpdateInput,
@@ -92,6 +95,19 @@ export class PersonsController {
     @Body(new ZodValidationPipe(HireStatusUpdateSchema)) dto: { hireStatus: string },
   ): Promise<OkResponse> {
     return this.persons.setHireStatus(user.sub, dto.hireStatus);
+  }
+
+  @Get('me/availability-card')
+  getAvailabilityCard(@CurrentUser() user: { sub: string }): Promise<AvailabilityCard> {
+    return this.persons.getAvailabilityCard(user.sub);
+  }
+
+  @Put('me/availability-card')
+  updateAvailabilityCard(
+    @CurrentUser() user: { sub: string },
+    @Body(new ZodValidationPipe(AvailabilityCardUpdateSchema)) dto: AvailabilityCardUpdateData,
+  ): Promise<AvailabilityCard> {
+    return this.persons.updateAvailabilityCard(user.sub, dto);
   }
 
   @Get('me/employers')

@@ -11,6 +11,8 @@ export * from './job';
 export * from './application';
 export * from './work';
 export * from './worklog';
+export * from './work-readiness';
+export * from './invoice';
 export * from './community';
 export * from './support';
 export * from './service';

@@ -7,10 +7,10 @@ import { Alert, Button, Card, Icon, cn } from '@workarmy/ui';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/form';
 import { useTabParam } from '@/lib/use-tab-param';
-import { useMe } from './DashboardShell';
+import { useMe, useWorkReady } from './DashboardShell';
 
-type Tab = 'find' | 'saved' | 'applied' | 'interviews';
-const TABS = ['find', 'saved', 'applied', 'interviews'] as const;
+type Tab = 'find' | 'saved' | 'applied' | 'interviews' | 'previous';
+const TABS = ['find', 'saved', 'applied', 'interviews', 'previous'] as const;
 
 const stageTone: Record<string, string> = {
   APPLIED: 'bg-[#EFF6FF] text-[#1E40AF]',
@@ -31,6 +31,8 @@ function payLabel(j: JobListing): string {
 export function JobsApplicationsSection() {
   const me = useMe();
   const profileComplete = me?.person?.profileComplete ?? false;
+  const workReady = useWorkReady();
+  const canApply = profileComplete && workReady;
   const [tab, setTab] = useTabParam<Tab>(TABS, 'find');
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [savedJobs, setSavedJobs] = useState<JobListing[]>([]);
@@ -91,6 +93,7 @@ export function JobsApplicationsSection() {
   }
 
   const interviews = apps.filter((a) => a.stage === 'INTERVIEW');
+  const previous = apps.filter((a) => a.stage === 'HIRED');
 
   function jobCard(job: JobListing) {
     return (
@@ -115,6 +118,12 @@ export function JobsApplicationsSection() {
             <Link href="/dashboard/profile">
               <Button size="sm" variant="secondary">
                 <Icon name="lock" size={14} /> Verify to apply
+              </Button>
+            </Link>
+          ) : !workReady ? (
+            <Link href="/dashboard/work-readiness">
+              <Button size="sm" variant="secondary">
+                <Icon name="lock" size={14} /> Work Readiness
               </Button>
             </Link>
           ) : (
@@ -155,6 +164,7 @@ export function JobsApplicationsSection() {
     { key: 'saved', label: 'Saved', count: savedJobs.length },
     { key: 'applied', label: 'Applied', count: apps.length },
     { key: 'interviews', label: 'Interviews', count: interviews.length },
+    { key: 'previous', label: 'Previous', count: previous.length },
   ];
 
   return (
@@ -162,7 +172,7 @@ export function JobsApplicationsSection() {
       <h1 className="text-2xl">Jobs &amp; Applications</h1>
       {error ? <Alert tone="error">{error}</Alert> : null}
 
-      {!profileComplete ? (
+      {!canApply ? (
         <Card
           className="flex flex-wrap items-center justify-between gap-3 p-4"
           style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, white)' }}
@@ -172,11 +182,13 @@ export function JobsApplicationsSection() {
               <Icon name="lock" size={18} />
             </span>
             <p className="text-sm text-[#1E293B]">
-              Browse freely — but you&apos;ll need a verified profile &amp; 100-point ID to apply.
+              {!profileComplete
+                ? 'Browse freely — but you’ll need a verified profile & 100-point ID to apply.'
+                : 'Almost there — complete Work Readiness (TFN/ABN, super, bank) to apply.'}
             </p>
           </div>
-          <Link href="/dashboard/profile">
-            <Button size="sm">Verify my profile →</Button>
+          <Link href={!profileComplete ? '/dashboard/profile' : '/dashboard/work-readiness'}>
+            <Button size="sm">{!profileComplete ? 'Verify my profile →' : 'Complete Work Readiness →'}</Button>
           </Link>
         </Card>
       ) : null}
@@ -224,6 +236,13 @@ export function JobsApplicationsSection() {
           <Card className="p-6 text-sm text-[#64748B]">No interviews scheduled yet.</Card>
         ) : (
           <div className="space-y-3">{interviews.map(appCard)}</div>
+        ))}
+
+      {tab === 'previous' &&
+        (previous.length === 0 ? (
+          <Card className="p-6 text-sm text-[#64748B]">No previous jobs yet.</Card>
+        ) : (
+          <div className="space-y-3">{previous.map(appCard)}</div>
         ))}
     </div>
   );

@@ -29,8 +29,45 @@ export interface PersonProfile {
   availableHours: string | null;
   // hire-me status
   hireStatus: string | null;
+  // "Get Job Faster" availability card
+  cardQualification: string | null;
+  cardWorkType: string | null;
+  cardAvailableFrom: string | null;
+  cardUrgentShifts: boolean;
+  cardContactPreference: string | null;
+  cardPublished: boolean;
   /** UX progress metric (0–100), NOT compliance (Principle 4). */
   completeness: number;
+}
+
+/** The "Get Job Faster" availability card (read shape). */
+export interface AvailabilityCard {
+  photoDocumentId: string | null;
+  qualification: string | null;
+  suburb: string | null;
+  state: string | null;
+  availability: string | null;
+  workType: string | null;
+  availableFrom: string | null;
+  urgentShifts: boolean;
+  willingToRelocate: boolean;
+  preferredIndustries: string | null;
+  contactPreference: string | null;
+  published: boolean;
+}
+
+export interface AvailabilityCardInput {
+  qualification?: string;
+  suburb?: string;
+  state?: string;
+  availability?: string;
+  workType?: string;
+  availableFrom?: string;
+  urgentShifts?: boolean;
+  willingToRelocate?: boolean;
+  preferredIndustries?: string;
+  contactPreference?: string;
+  published?: boolean;
 }
 
 /** Partial update — also carries the identity fields that live on the person row. */

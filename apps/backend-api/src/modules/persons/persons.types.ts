@@ -5,4 +5,5 @@ export type {
   PersonPreferencesUpdateInput,
   BecomeProviderData,
   UserSettingsUpdateData,
+  AvailabilityCardUpdateData,
 } from '@workarmy/validation';

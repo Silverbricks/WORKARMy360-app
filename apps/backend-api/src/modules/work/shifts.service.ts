@@ -10,6 +10,7 @@ import type { Shift as DbShift } from '@workarmy/database';
 import type { ShiftInputData, ClockInputData } from '@workarmy/validation';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MembershipService } from '../../common/membership/membership.service';
+import { WorkReadinessService } from '../work-readiness/work-readiness.service';
 import { ApiException } from '../../common/errors/api-exception';
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
@@ -19,6 +20,7 @@ export class ShiftsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly membership: MembershipService,
+    private readonly workReadiness: WorkReadinessService,
   ) {}
 
   // --- provider ---
@@ -124,6 +126,13 @@ export class ShiftsService {
   async confirm(userId: string, assignmentId: string): Promise<{ ok: true }> {
     const personId = await this.membership.requirePerson(userId);
     await this.requireOwn(personId, assignmentId);
+    // Gate 3: must be work-ready before accepting a shift.
+    if (!(await this.workReadiness.isWorkReady(personId))) {
+      throw ApiException.badRequest(
+        'VALIDATION_ERROR',
+        'Complete Work Readiness before accepting shifts.',
+      );
+    }
     await this.prisma.shiftAssignment.update({ where: { id: assignmentId }, data: { status: 'CONFIRMED' } });
     return { ok: true as const };
   }

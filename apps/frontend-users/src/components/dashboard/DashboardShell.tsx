@@ -18,10 +18,16 @@ import { DashboardTopBar } from './DashboardTopBar';
 import { VerifyScreen } from './VerifyScreen';
 
 const MeContext = createContext<MeResponse | null>(null);
+const WorkReadyContext = createContext<boolean>(false);
 
 /** Person/auth data for the signed-in Job Seeker (null until loaded). */
 export function useMe(): MeResponse | null {
   return useContext(MeContext);
+}
+
+/** Gate 3 — whether the seeker is work-ready (can accept shifts / apply). */
+export function useWorkReady(): boolean {
+  return useContext(WorkReadyContext);
 }
 
 export function DashboardShell({ children }: { children: ReactNode }) {
@@ -30,6 +36,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<ConversationView[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [workReady, setWorkReady] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -64,13 +71,15 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     if (!verified) return;
     let active = true;
     (async () => {
-      const [convos, notifs] = await Promise.all([
+      const [convos, notifs, wr] = await Promise.all([
         api.support.conversations().catch(() => []),
         api.support.notifications().catch(() => []),
+        api.workReadiness.get().catch(() => null),
       ]);
       if (!active) return;
       setConversations(convos);
       setNotifications(notifs);
+      setWorkReady(wr?.workReady ?? false);
     })();
     return () => {
       active = false;
@@ -103,6 +112,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <MeContext.Provider value={me}>
+      <WorkReadyContext.Provider value={workReady}>
       <div className="flex min-h-screen flex-col bg-[#F8FAFC]">
         <DashboardTopBar
           me={me}
@@ -158,6 +168,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
         </Suspense>
       </div>
+      </WorkReadyContext.Provider>
     </MeContext.Provider>
   );
 }

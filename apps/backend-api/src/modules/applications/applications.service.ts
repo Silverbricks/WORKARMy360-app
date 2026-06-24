@@ -12,6 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MembershipService } from '../../common/membership/membership.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { WorkReadinessService } from '../work-readiness/work-readiness.service';
 import { ApiException } from '../../common/errors/api-exception';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class ApplicationsService {
     private readonly membership: MembershipService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly workReadiness: WorkReadinessService,
   ) {}
 
   async apply(userId: string, jobId: string, input: ApplyInput): Promise<JobApplication> {
@@ -34,6 +36,13 @@ export class ApplicationsService {
       throw ApiException.badRequest(
         'VALIDATION_ERROR',
         'Complete and verify your profile before applying for jobs.',
+      );
+    }
+    // Gate 3: must be work-ready (TFN/ABN + super + bank + no-cash ack) before applying.
+    if (!(await this.workReadiness.isWorkReady(personId))) {
+      throw ApiException.badRequest(
+        'VALIDATION_ERROR',
+        'Complete Work Readiness before applying for jobs.',
       );
     }
     const job = await this.prisma.job.findUnique({ where: { id: jobId }, select: { status: true } });

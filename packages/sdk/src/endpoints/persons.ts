@@ -1,4 +1,6 @@
 import type {
+  AvailabilityCard,
+  AvailabilityCardInput,
   BecomeProviderInput,
   EmployerSummary,
   OkResponse,
@@ -26,6 +28,9 @@ export function createPersonsClient(http: HttpClient) {
     complete: () => http.request<OkResponse>('/persons/me/complete', { method: 'POST' }),
     setHireStatus: (hireStatus: string) =>
       http.request<OkResponse>('/persons/me/hire-status', { method: 'PUT', body: { hireStatus } }),
+    getAvailabilityCard: () => http.request<AvailabilityCard>('/persons/me/availability-card'),
+    updateAvailabilityCard: (body: AvailabilityCardInput) =>
+      http.request<AvailabilityCard>('/persons/me/availability-card', { method: 'PUT', body }),
     employers: () => http.request<EmployerSummary[]>('/persons/me/employers'),
     becomeProvider: (body: BecomeProviderInput) =>
       http.request<OrgSummary>('/persons/me/become-provider', { method: 'POST', body }),

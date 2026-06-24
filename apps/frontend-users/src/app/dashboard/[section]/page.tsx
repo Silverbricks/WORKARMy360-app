@@ -14,6 +14,18 @@ import { ShareProfileSection } from '@/components/dashboard/ShareProfileSection'
 import { FeedbackSection } from '@/components/dashboard/FeedbackSection';
 import { ReportTicketSection } from '@/components/dashboard/ReportTicketSection';
 import { ManualTimesheetSection } from '@/components/dashboard/ManualTimesheetSection';
+import { GetJobFasterSection } from '@/components/dashboard/GetJobFasterSection';
+import { WorkReadinessSection } from '@/components/dashboard/WorkReadinessSection';
+import { MyTaxSection } from '@/components/dashboard/MyTaxSection';
+import { LodgeTaxSection } from '@/components/dashboard/LodgeTaxSection';
+import { InvoicesSection } from '@/components/dashboard/InvoicesSection';
+import { SwapShiftsSection } from '@/components/dashboard/SwapShiftsSection';
+import { ShareJobsSection } from '@/components/dashboard/ShareJobsSection';
+import { PoolsTeamsSection } from '@/components/dashboard/PoolsTeamsSection';
+import { IdeasSection } from '@/components/dashboard/IdeasSection';
+import { GrowSection } from '@/components/dashboard/GrowSection';
+import { WorkArmyAppSection } from '@/components/dashboard/WorkArmyAppSection';
+import { EmployersSection } from '@/components/dashboard/EmployersSection';
 import { getSection, STUB_SLUGS } from '@/lib/dashboard-sections';
 import { EXTRA_SLUGS } from '@/lib/dashboard-nav';
 
@@ -61,6 +73,31 @@ function sectionElement(slug: string, data: ReturnType<typeof getSection>) {
       return <ReportTicketSection variant="incident" />;
     case 'report':
       return <ReportTicketSection variant="report" />;
+    // Round 2 sections
+    case 'get-job-faster':
+      return <GetJobFasterSection />;
+    case 'work-readiness':
+      return <WorkReadinessSection />;
+    case 'my-tax':
+      return <MyTaxSection />;
+    case 'lodge-tax':
+      return <LodgeTaxSection />;
+    case 'invoices':
+      return <InvoicesSection />;
+    case 'swap-shifts':
+      return <SwapShiftsSection />;
+    case 'share-jobs':
+      return <ShareJobsSection />;
+    case 'pools':
+      return <PoolsTeamsSection />;
+    case 'ideas':
+      return <IdeasSection />;
+    case 'grow':
+      return <GrowSection />;
+    case 'app':
+      return <WorkArmyAppSection />;
+    case 'employers':
+      return <EmployersSection />;
     default:
       return data ? <SectionStub section={data} /> : null;
   }

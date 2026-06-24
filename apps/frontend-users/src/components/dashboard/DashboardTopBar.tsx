@@ -228,8 +228,17 @@ export function DashboardTopBar({
                 <MenuLink href="/dashboard/profile" icon="user" onClick={() => setMenu(null)}>
                   Complete profile
                 </MenuLink>
+                <MenuLink href="/dashboard/profile" icon="user" onClick={() => setMenu(null)}>
+                  Personal &amp; work experience
+                </MenuLink>
                 <MenuLink href="/dashboard/qualifications" icon="award" onClick={() => setMenu(null)}>
-                  Qualifications &amp; 100-pt ID
+                  Qualifications &amp; certifications
+                </MenuLink>
+                <MenuLink href="/dashboard/qualifications" icon="idCard" onClick={() => setMenu(null)}>
+                  100 points of ID
+                </MenuLink>
+                <MenuLink href="/dashboard/my-tax" icon="receipt" onClick={() => setMenu(null)}>
+                  My Tax
                 </MenuLink>
                 <MenuLink href="/dashboard/worker-id" icon="idCard" onClick={() => setMenu(null)}>
                   Worker ID

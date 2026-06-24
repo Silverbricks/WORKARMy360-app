@@ -257,6 +257,8 @@ model Person {
   conversations    Conversation[]
   serviceListings  ServiceListing[]
   workLogs         WorkLog[]
+  workReadiness    WorkReadiness?
+  invoices         Invoice[]
 
   @@map("persons")
 }
@@ -299,6 +301,13 @@ model PersonProfile {
   preferredJobTypes   String?  @map("preferred_job_types") // csv
   preferredPayMin     Int?     @map("preferred_pay_min")
   willingToRelocate   Boolean  @default(false) @map("willing_to_relocate")
+  // "Get Job Faster" availability card (worker-built public card)
+  cardQualification     String?  @map("card_qualification")
+  cardWorkType          String?  @map("card_work_type") // hourly / weekly / contract / any
+  cardAvailableFrom     String?  @map("card_available_from") // "ASAP" or ISO YYYY-MM-DD
+  cardUrgentShifts      Boolean  @default(false) @map("card_urgent_shifts")
+  cardContactPreference String?  @map("card_contact_preference") // in_app / phone / email
+  cardPublished         Boolean  @default(false) @map("card_published")
   completeness   Int      @default(0)
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -760,6 +769,129 @@ model Feedback {
 
   @@index([personId])
   @@map("feedback")
+}
+
+// --- work readiness (Gate 3) + tax -----------------------------------------
+
+enum EngagementType {
+  EMPLOYEE
+  CONTRACT
+}
+
+enum TaxLodgementKind {
+  PERSONAL
+  ABN
+}
+
+enum TaxLodgementStatus {
+  REQUESTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// A seeker's work-readiness + tax details (Gate 3). Sensitive fields (TFN, bank)
+/// are stored as-is for now — encryption-at-rest is a tracked follow-up.
+model WorkReadiness {
+  personId    String          @id @map("person_id") @db.Uuid
+  engagement  EngagementType?
+  tfn         String? // SENSITIVE
+  abn         String? // 11 digits (contract path)
+  hasSuper    Boolean         @default(false) @map("has_super")
+  superFund   String?         @map("super_fund")
+  superMember String?         @map("super_member")
+  bankBsb     String?         @map("bank_bsb")
+  bankAccount String?         @map("bank_account") // SENSITIVE
+  noCashAck   Boolean         @default(false) @map("no_cash_ack")
+  bankLater   Boolean         @default(false) @map("bank_later")
+  workReady   Boolean         @default(false) @map("work_ready") // computed snapshot
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  person     Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
+  lodgements TaxLodgement[]
+  shares     TaxShare[]
+
+  @@map("work_readiness")
+}
+
+model TaxLodgement {
+  id            String             @id @default(uuid()) @db.Uuid
+  personId      String             @map("person_id") @db.Uuid
+  kind          TaxLodgementKind
+  financialYear String             @map("financial_year") // e.g. "2024-25"
+  note          String?
+  status        TaxLodgementStatus @default(REQUESTED)
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  readiness WorkReadiness @relation(fields: [personId], references: [personId], onDelete: Cascade)
+
+  @@index([personId])
+  @@map("tax_lodgements")
+}
+
+model TaxShare {
+  id                String   @id @default(uuid()) @db.Uuid
+  personId          String   @map("person_id") @db.Uuid
+  employer          String
+  passwordProtected Boolean  @default(false) @map("password_protected")
+  sharedAt          DateTime @default(now()) @map("shared_at")
+
+  readiness WorkReadiness @relation(fields: [personId], references: [personId], onDelete: Cascade)
+
+  @@index([personId])
+  @@map("tax_shares")
+}
+
+// --- invoices (contract billing) -------------------------------------------
+
+enum InvoiceStatus {
+  SENT
+  PAID
+}
+
+enum InvoiceLineKind {
+  HOURLY
+  PIECE
+}
+
+/// A worker-issued invoice for contract work (gated on a valid ABN). Money is in
+/// cents to support GST precision.
+model Invoice {
+  id            String        @id @default(uuid()) @db.Uuid
+  personId      String        @map("person_id") @db.Uuid
+  number        String
+  clientName    String        @map("client_name")
+  clientAbn     String?       @map("client_abn")
+  date          String // ISO YYYY-MM-DD
+  gst           Boolean       @default(false)
+  notes         String?
+  status        InvoiceStatus @default(SENT)
+  subtotalCents Int           @default(0) @map("subtotal_cents")
+  gstCents      Int           @default(0) @map("gst_cents")
+  totalCents    Int           @default(0) @map("total_cents")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  person    Person            @relation(fields: [personId], references: [id], onDelete: Cascade)
+  lineItems InvoiceLineItem[]
+
+  @@unique([personId, number])
+  @@index([personId])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id             String          @id @default(uuid()) @db.Uuid
+  invoiceId      String          @map("invoice_id") @db.Uuid
+  kind           InvoiceLineKind
+  description    String
+  qty            Int             @default(1)
+  rateCents      Int             @default(0) @map("rate_cents")
+  lineTotalCents Int             @default(0) @map("line_total_cents")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_line_items")
 }
 
 // --- support, messages, notifications, settings ----------------------------
