@@ -6,6 +6,7 @@ import { MembershipModule } from './common/membership/membership.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PersonsModule } from './modules/persons/persons.module';
+import { FilesModule } from './modules/files/files.module';
 import { OrganisationsModule } from './modules/organisations/organisations.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ApplicationsModule } from './modules/applications/applications.module';
@@ -18,6 +19,7 @@ import { AdminModule } from './modules/admin/admin.module';
     MembershipModule,
     AuthModule,
     PersonsModule,
+    FilesModule,
     OrganisationsModule,
     JobsModule,
     ApplicationsModule,

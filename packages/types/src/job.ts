@@ -27,6 +27,7 @@ export interface JobListing extends Job {
   org: { name: string; accountType: string };
   applicantCount?: number;
   applied?: boolean;
+  saved?: boolean;
 }
 
 export interface JobInput {

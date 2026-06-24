@@ -81,6 +81,40 @@ export interface WorkExperienceInput {
   summary?: string;
 }
 
+/** Job preferences — drive matching. Kept separate from completeness (Principle 4). */
+export interface PersonPreferences {
+  seekerCategory: string | null;
+  userTypes: string | null;
+  preferredLocations: string | null;
+  preferredIndustries: string | null;
+  preferredJobTypes: string | null;
+  preferredPayMin: number | null;
+  willingToRelocate: boolean;
+}
+
+export interface PersonPreferencesUpdate {
+  seekerCategory?: string;
+  userTypes?: string;
+  preferredLocations?: string;
+  preferredIndustries?: string;
+  preferredJobTypes?: string;
+  preferredPayMin?: number;
+  willingToRelocate?: boolean;
+}
+
+/** Job-seeker user types (a self-declared attribute, not a subtype — Principle 2). */
+export const USER_TYPES = [
+  'Permanent',
+  'Casual',
+  'Seasonal',
+  'Backpacker',
+  'Apprentice',
+  'Trainee',
+  'Volunteer',
+  'Skilled',
+  'Professional',
+] as const;
+
 /** Full Job Seeker view returned by GET /persons/me. */
 export interface PersonDetail {
   waId: string;
@@ -90,5 +124,6 @@ export interface PersonDetail {
   mobile: string | null;
   email: string;
   profile: PersonProfile | null;
+  preferences: PersonPreferences | null;
   experiences: WorkExperience[];
 }

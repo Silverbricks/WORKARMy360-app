@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { JobBrowseQuerySchema, JobInputSchema } from '@workarmy/validation';
-import type { Job, JobListing, Paginated } from '@workarmy/types';
+import type { Job, JobListing, OkResponse, Paginated } from '@workarmy/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { JobsService } from './jobs.service';
@@ -23,9 +23,25 @@ export class JobsController {
     return this.jobs.mine(user.sub);
   }
 
+  // Declared before ':id' so "saved" isn't captured as a job id.
+  @Get('saved')
+  saved(@CurrentUser() user: { sub: string }): Promise<JobListing[]> {
+    return this.jobs.saved(user.sub);
+  }
+
   @Get(':id')
   get(@Param('id') id: string): Promise<JobListing> {
     return this.jobs.get(id);
+  }
+
+  @Post(':id/save')
+  save(@CurrentUser() user: { sub: string }, @Param('id') id: string): Promise<OkResponse> {
+    return this.jobs.save(user.sub, id);
+  }
+
+  @Delete(':id/save')
+  unsave(@CurrentUser() user: { sub: string }, @Param('id') id: string): Promise<OkResponse> {
+    return this.jobs.unsave(user.sub, id);
   }
 
   @Post()

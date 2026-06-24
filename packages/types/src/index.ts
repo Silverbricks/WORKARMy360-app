@@ -3,6 +3,7 @@ export * from './api';
 export * from './user';
 export * from './auth';
 export * from './person';
+export * from './document';
 export * from './organisation';
 export * from './job';
 export * from './application';

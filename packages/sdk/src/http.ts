@@ -57,8 +57,12 @@ export class HttpClient {
     const doFetch = this.opts.fetchImpl ?? fetch;
     const url = this.opts.baseUrl.replace(/\/$/, '') + path;
 
+    // FormData bodies are sent as-is; the browser sets the multipart Content-Type
+    // (with boundary). Everything else is JSON.
+    const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
       ...this.opts.defaultHeaders,
       ...options.headers,
     };
@@ -68,7 +72,12 @@ export class HttpClient {
     const res = await doFetch(url, {
       method: options.method ?? 'GET',
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body:
+        options.body === undefined
+          ? undefined
+          : isForm
+            ? (options.body as FormData)
+            : JSON.stringify(options.body),
       credentials: 'include',
       signal: options.signal,
     });

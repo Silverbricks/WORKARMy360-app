@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { PersonDetail, PersonProfile, WorkExperience } from '@workarmy/types';
+import type { PersonDetail, PersonPreferences, PersonProfile, WorkExperience } from '@workarmy/types';
 import type {
   DbPersonProfile,
   DbWorkExperience,
+  PersonPreferencesUpdateInput,
   PersonProfileUpdateInput,
   WorkExperienceInputData,
 } from './persons.types';
@@ -54,8 +55,32 @@ export class PersonsService {
       mobile: person.mobile,
       email: person.user.email,
       profile: person.profile ? toProfile(person.profile) : null,
+      preferences: person.profile ? toPreferences(person.profile) : null,
       experiences: person.experiences.map(toExperience),
     };
+  }
+
+  async getPreferences(userId: string): Promise<PersonPreferences> {
+    const personId = await this.membership.requirePerson(userId);
+    const profile = await this.prisma.personProfile.findUnique({ where: { personId } });
+    return profile ? toPreferences(profile) : emptyPreferences();
+  }
+
+  async updatePreferences(
+    userId: string,
+    input: PersonPreferencesUpdateInput,
+  ): Promise<PersonPreferences> {
+    const personId = await this.membership.requirePerson(userId);
+    if (input.preferredLocations && input.preferredLocations.split(',').filter((s) => s.trim()).length > 3) {
+      throw ApiException.badRequest('VALIDATION_ERROR', 'Choose at most 3 preferred locations.');
+    }
+    // Preferences are NOT part of completeness (Principle 4) — leave it untouched.
+    const profile = await this.prisma.personProfile.upsert({
+      where: { personId },
+      update: { ...input },
+      create: { personId, ...input, completeness: 0 },
+    });
+    return toPreferences(profile);
   }
 
   async updateProfile(userId: string, input: PersonProfileUpdateInput): Promise<PersonProfile> {
@@ -167,6 +192,30 @@ function toProfile(p: DbPersonProfile): PersonProfile {
     availableHours: p.availableHours,
     hireStatus: p.hireStatus,
     completeness: p.completeness,
+  };
+}
+
+function toPreferences(p: DbPersonProfile): PersonPreferences {
+  return {
+    seekerCategory: p.seekerCategory,
+    userTypes: p.userTypes,
+    preferredLocations: p.preferredLocations,
+    preferredIndustries: p.preferredIndustries,
+    preferredJobTypes: p.preferredJobTypes,
+    preferredPayMin: p.preferredPayMin,
+    willingToRelocate: p.willingToRelocate,
+  };
+}
+
+function emptyPreferences(): PersonPreferences {
+  return {
+    seekerCategory: null,
+    userTypes: null,
+    preferredLocations: null,
+    preferredIndustries: null,
+    preferredJobTypes: null,
+    preferredPayMin: null,
+    willingToRelocate: false,
   };
 }
 

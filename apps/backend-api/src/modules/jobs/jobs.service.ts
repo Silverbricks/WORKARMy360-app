@@ -95,20 +95,71 @@ export class JobsService {
 
     const ctx = await this.membership.getContext(userId);
     let applied = new Set<string>();
+    let saved = new Set<string>();
     if (ctx.personId && items.length) {
-      const apps = await this.prisma.jobApplication.findMany({
-        where: { personId: ctx.personId, jobId: { in: items.map((j) => j.id) } },
-        select: { jobId: true },
-      });
+      const ids = items.map((j) => j.id);
+      const [apps, savedRows] = await Promise.all([
+        this.prisma.jobApplication.findMany({
+          where: { personId: ctx.personId, jobId: { in: ids } },
+          select: { jobId: true },
+        }),
+        this.prisma.savedJob.findMany({
+          where: { personId: ctx.personId, jobId: { in: ids } },
+          select: { jobId: true },
+        }),
+      ]);
       applied = new Set(apps.map((a) => a.jobId));
+      saved = new Set(savedRows.map((s) => s.jobId));
     }
 
     return {
-      items: items.map((j) => toListing(j, j.organisation, j._count.applications, applied.has(j.id))),
+      items: items.map((j) =>
+        toListing(j, j.organisation, j._count.applications, applied.has(j.id), saved.has(j.id)),
+      ),
       total,
       page,
       pageSize,
     };
+  }
+
+  async save(userId: string, jobId: string): Promise<{ ok: true }> {
+    const personId = await this.membership.requirePerson(userId);
+    const job = await this.prisma.job.findUnique({ where: { id: jobId }, select: { id: true } });
+    if (!job) throw ApiException.notFound('Job not found.');
+    try {
+      await this.prisma.savedJob.create({ data: { personId, jobId } });
+    } catch {
+      // unique violation → already saved; idempotent.
+    }
+    return { ok: true as const };
+  }
+
+  async unsave(userId: string, jobId: string): Promise<{ ok: true }> {
+    const personId = await this.membership.requirePerson(userId);
+    await this.prisma.savedJob.deleteMany({ where: { personId, jobId } });
+    return { ok: true as const };
+  }
+
+  async saved(userId: string): Promise<JobListing[]> {
+    const personId = await this.membership.requirePerson(userId);
+    const rows = await this.prisma.savedJob.findMany({
+      where: { personId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        job: { include: { organisation: true, _count: { select: { applications: true } } } },
+      },
+    });
+    const jobIds = rows.map((r) => r.jobId);
+    const apps = jobIds.length
+      ? await this.prisma.jobApplication.findMany({
+          where: { personId, jobId: { in: jobIds } },
+          select: { jobId: true },
+        })
+      : [];
+    const applied = new Set(apps.map((a) => a.jobId));
+    return rows.map((r) =>
+      toListing(r.job, r.job.organisation, r.job._count.applications, applied.has(r.jobId), true),
+    );
   }
 
   private async ensureOwned(id: string, orgId: string): Promise<void> {
@@ -158,11 +209,18 @@ function toJob(j: DbJob): Job {
   };
 }
 
-function toListing(j: DbJob, org: DbOrg, applicantCount: number, applied?: boolean): JobListing {
+function toListing(
+  j: DbJob,
+  org: DbOrg,
+  applicantCount: number,
+  applied?: boolean,
+  saved?: boolean,
+): JobListing {
   return {
     ...toJob(j),
     org: { name: org.name, accountType: org.accountType },
     applicantCount,
     applied,
+    saved,
   };
 }

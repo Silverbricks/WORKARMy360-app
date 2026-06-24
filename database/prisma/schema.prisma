@@ -191,6 +191,7 @@ model Person {
   experiences    WorkExperience[]
   orgMemberships OrgMember[]
   applications   JobApplication[]
+  savedJobs      SavedJob[]
   documents      Document[]
   credentials    Credential[]
 
@@ -226,12 +227,35 @@ model PersonProfile {
   availableHours String?  @map("available_hours")
   // hire-me status
   hireStatus     String?  @map("hire_status") // AVAILABLE_NOW / AVAILABLE_SOON / OPEN / NOT_LOOKING
+  // job preferences (drive matching — NOT completeness, Principle 4)
+  seekerCategory      String?  @map("seeker_category")
+  userTypes           String?  @map("user_types") // csv: Permanent,Casual,Seasonal,...
+  preferredLocations  String?  @map("preferred_locations") // csv, max 3
+  preferredIndustries String?  @map("preferred_industries") // csv
+  preferredJobTypes   String?  @map("preferred_job_types") // csv
+  preferredPayMin     Int?     @map("preferred_pay_min")
+  willingToRelocate   Boolean  @default(false) @map("willing_to_relocate")
   completeness   Int      @default(0)
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@map("person_profiles")
+}
+
+/// A job a seeker has saved/bookmarked (join row — like JobApplication, no WA ID).
+model SavedJob {
+  id        String   @id @default(uuid()) @db.Uuid
+  personId  String   @map("person_id") @db.Uuid
+  jobId     String   @map("job_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, jobId])
+  @@index([personId])
+  @@map("saved_jobs")
 }
 
 /// Repeatable employment-history entry for a person (mirrors Contact for orgs).
@@ -351,6 +375,7 @@ model Job {
 
   organisation Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   applications JobApplication[]
+  savedBy      SavedJob[]
 
   @@index([orgId])
   @@index([status, state])

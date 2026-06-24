@@ -20,6 +20,10 @@ const EnvSchema = z.object({
   EMAIL_FROM: z.string().default('WorkArmy <no-reply@workarmy.co>'),
   RESEND_API_KEY: z.string().optional(),
 
+  // File uploads (stored on the server disk).
+  UPLOAD_DIR: z.string().default('./uploads'),
+  MAX_UPLOAD_MB: z.coerce.number().int().positive().default(10),
+
   TURNSTILE_ENABLED: boolFromString.default('false'),
   TURNSTILE_SECRET: z.string().optional(),
 

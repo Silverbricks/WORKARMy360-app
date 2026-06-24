@@ -16,6 +16,11 @@ const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1
 
 export const api = createClient({ baseUrl, getAccessToken: () => accessToken });
 
+/** Public download URL for an uploaded file (capability URL by document id). */
+export function fileDownloadUrl(id: string): string {
+  return `${baseUrl.replace(/\/$/, '')}/files/${id}/download`;
+}
+
 export const PROVIDERS_URL = process.env.NEXT_PUBLIC_PROVIDERS_URL ?? 'http://localhost:3001';
 
 export { WorkArmyApiError };

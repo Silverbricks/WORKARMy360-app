@@ -79,6 +79,16 @@ export const WorkExperienceInputSchema = z.object({
   summary: optionalText(1000),
 });
 
+export const PersonPreferencesUpdateSchema = z.object({
+  seekerCategory: optionalText(80),
+  userTypes: optionalText(200), // csv
+  preferredLocations: optionalText(200), // csv; service enforces max 3
+  preferredIndustries: optionalText(400),
+  preferredJobTypes: optionalText(400),
+  preferredPayMin: z.coerce.number().int().nonnegative().optional(),
+  willingToRelocate: z.boolean().optional(),
+});
+
 // --- jobs ------------------------------------------------------------------
 
 export const JobInputSchema = z.object({
@@ -127,6 +137,7 @@ export type OrgProfileUpdateInput = z.infer<typeof OrgProfileUpdateSchema>;
 export type ContactInputData = z.infer<typeof ContactInputSchema>;
 export type PersonProfileUpdateInput = z.infer<typeof PersonProfileUpdateSchema>;
 export type WorkExperienceInputData = z.infer<typeof WorkExperienceInputSchema>;
+export type PersonPreferencesUpdateInput = z.infer<typeof PersonPreferencesUpdateSchema>;
 export type JobInputData = z.infer<typeof JobInputSchema>;
 export type JobBrowseQueryData = z.infer<typeof JobBrowseQuerySchema>;
 export type ApplyInputData = z.infer<typeof ApplyInputSchema>;

@@ -1,10 +1,24 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
-import { PersonProfileUpdateSchema, WorkExperienceInputSchema } from '@workarmy/validation';
-import type { OkResponse, PersonDetail, PersonProfile, WorkExperience } from '@workarmy/types';
+import {
+  PersonPreferencesUpdateSchema,
+  PersonProfileUpdateSchema,
+  WorkExperienceInputSchema,
+} from '@workarmy/validation';
+import type {
+  OkResponse,
+  PersonDetail,
+  PersonPreferences,
+  PersonProfile,
+  WorkExperience,
+} from '@workarmy/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { PersonsService } from './persons.service';
-import type { PersonProfileUpdateInput, WorkExperienceInputData } from './persons.types';
+import type {
+  PersonPreferencesUpdateInput,
+  PersonProfileUpdateInput,
+  WorkExperienceInputData,
+} from './persons.types';
 
 @Controller('persons')
 export class PersonsController {
@@ -21,6 +35,19 @@ export class PersonsController {
     @Body(new ZodValidationPipe(PersonProfileUpdateSchema)) dto: PersonProfileUpdateInput,
   ): Promise<PersonProfile> {
     return this.persons.updateProfile(user.sub, dto);
+  }
+
+  @Get('me/preferences')
+  getPreferences(@CurrentUser() user: { sub: string }): Promise<PersonPreferences> {
+    return this.persons.getPreferences(user.sub);
+  }
+
+  @Put('me/preferences')
+  updatePreferences(
+    @CurrentUser() user: { sub: string },
+    @Body(new ZodValidationPipe(PersonPreferencesUpdateSchema)) dto: PersonPreferencesUpdateInput,
+  ): Promise<PersonPreferences> {
+    return this.persons.updatePreferences(user.sub, dto);
   }
 
   @Post('me/experience')

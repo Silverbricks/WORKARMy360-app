@@ -1,4 +1,4 @@
-import type { Job, JobBrowseQuery, JobInput, JobListing, Paginated } from '@workarmy/types';
+import type { Job, JobBrowseQuery, JobInput, JobListing, OkResponse, Paginated } from '@workarmy/types';
 import { toQueryString, type HttpClient } from '../http';
 
 export function createJobsClient(http: HttpClient) {
@@ -13,6 +13,10 @@ export function createJobsClient(http: HttpClient) {
     /** Public browse of published jobs (job seekers). */
     browse: (query: JobBrowseQuery = {}) =>
       http.request<Paginated<JobListing>>(`/jobs${toQueryString({ ...query })}`),
+    /** Saved/bookmarked jobs (job seekers). */
+    saved: () => http.request<JobListing[]>('/jobs/saved'),
+    save: (id: string) => http.request<OkResponse>(`/jobs/${id}/save`, { method: 'POST' }),
+    unsave: (id: string) => http.request<OkResponse>(`/jobs/${id}/save`, { method: 'DELETE' }),
   };
 }
 
