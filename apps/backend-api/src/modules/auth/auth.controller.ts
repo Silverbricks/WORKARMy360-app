@@ -65,11 +65,14 @@ export class AuthController {
   async register(
     @Body(new ZodValidationPipe(RegisterSchema)) dto: import('@workarmy/validation').RegisterInput,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<RegisterResponse> {
     const ctx = requestContext(req);
     const ok = await this.turnstile.verify(dto.turnstileToken, ctx.ip);
     if (!ok) throw ApiException.badRequest('TURNSTILE_FAILED', 'Bot check failed. Please try again.');
-    return this.auth.register(dto, ctx);
+    const { tokens, ...rest } = await this.auth.register(dto, ctx);
+    this.setRefreshCookie(res, tokens.refresh);
+    return { ...rest, accessToken: tokens.accessToken };
   }
 
   @Public()

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, Button, Field, Input, PasswordInput, t } from '@workarmy/ui';
 import { LoginSchema } from '@workarmy/validation';
-import { WorkArmyApiError } from '@workarmy/sdk';
 import { api, setAccessToken, setAuthHint } from '@/lib/api';
 import { errorMessage, zodFieldErrors, type FieldErrors } from '@/lib/form';
 
@@ -31,15 +30,13 @@ export function LoginForm() {
     setErrors({});
     setSubmitting(true);
     try {
+      // Unverified users may log in — they land in the dashboard and the boot OTP
+      // gate blocks everything until they verify.
       const res = await api.auth.login(parsed.data);
       setAccessToken(res.accessToken);
       setAuthHint();
       router.push(next);
     } catch (err) {
-      if (err instanceof WorkArmyApiError && err.code === 'EMAIL_NOT_VERIFIED') {
-        router.push(`/verify?email=${encodeURIComponent(values.email)}`);
-        return;
-      }
       setFormError(errorMessage(err));
     } finally {
       setSubmitting(false);

@@ -69,16 +69,6 @@ export class AuthService {
   async register(dto: RegisterInput, ctx: RequestContext) {
     const existing = await this.users.findByEmail(dto.email);
     if (existing) {
-      // Registered but never verified → resend a fresh code and send them to the
-      // verify screen instead of a dead-end error (only when verification applies).
-      if (VERIFICATION_REQUIRED && !existing.emailVerified) {
-        const otpExpiresAt = await this.otp.issue(existing);
-        await this.audit.record('OTP_SENT', { userId: existing.id, ip: ctx.ip });
-        throw ApiException.conflict(
-          'EMAIL_NOT_VERIFIED',
-          'This email is already registered but not verified — we’ve sent you a fresh code.',
-        );
-      }
       throw ApiException.conflict(
         'EMAIL_TAKEN',
         'An account with this email already exists. Please log in.',
@@ -144,17 +134,22 @@ export class AuthService {
       });
     }
 
-    if (!VERIFICATION_REQUIRED) {
-      return { userId: user.id, waId: person.waId, requiresVerification: false, otpExpiresAt: null };
+    let otpExpiresAt: string | null = null;
+    if (VERIFICATION_REQUIRED) {
+      const exp = await this.otp.issue(user);
+      await this.audit.record('OTP_SENT', { userId: user.id, ip: ctx.ip });
+      otpExpiresAt = exp.toISOString();
     }
 
-    const otpExpiresAt = await this.otp.issue(user);
-    await this.audit.record('OTP_SENT', { userId: user.id, ip: ctx.ip });
+    // Always issue a session so the user lands in the dashboard immediately; the
+    // dashboard itself gates everything behind the in-app OTP verify screen.
+    const tokens = await this.issueTokens(user, ctx);
     return {
       userId: user.id,
       waId: person.waId,
-      requiresVerification: true,
-      otpExpiresAt: otpExpiresAt.toISOString(),
+      requiresVerification: VERIFICATION_REQUIRED,
+      otpExpiresAt,
+      tokens,
     };
   }
 
@@ -219,10 +214,7 @@ export class AuthService {
       throw ApiException.unauthorized('Incorrect email or password.', 'INVALID_CREDENTIALS');
     }
 
-    if (VERIFICATION_REQUIRED && !user.emailVerified) {
-      throw ApiException.unauthorized('Please verify your email to continue.', 'EMAIL_NOT_VERIFIED');
-    }
-
+    // Unverified users may log in — the dashboard's OTP verify screen gates access.
     await this.prisma.user.update({
       where: { id: user.id },
       data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },

@@ -5,6 +5,7 @@ export * from './endpoints/files';
 export * from './endpoints/credentials';
 export * from './endpoints/resume';
 export * from './endpoints/work';
+export * from './endpoints/worklog';
 export * from './endpoints/community';
 export * from './endpoints/support';
 export * from './endpoints/services';

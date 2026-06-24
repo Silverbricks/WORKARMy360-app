@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import type { JobListing, MyApplication } from '@workarmy/types';
 import { Alert, Button, Card, Icon, cn } from '@workarmy/ui';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/form';
+import { useTabParam } from '@/lib/use-tab-param';
+import { useMe } from './DashboardShell';
 
 type Tab = 'find' | 'saved' | 'applied' | 'interviews';
+const TABS = ['find', 'saved', 'applied', 'interviews'] as const;
 
 const stageTone: Record<string, string> = {
   APPLIED: 'bg-[#EFF6FF] text-[#1E40AF]',
@@ -25,7 +29,9 @@ function payLabel(j: JobListing): string {
 }
 
 export function JobsApplicationsSection() {
-  const [tab, setTab] = useState<Tab>('find');
+  const me = useMe();
+  const profileComplete = me?.person?.profileComplete ?? false;
+  const [tab, setTab] = useTabParam<Tab>(TABS, 'find');
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [savedJobs, setSavedJobs] = useState<JobListing[]>([]);
   const [apps, setApps] = useState<MyApplication[]>([]);
@@ -105,14 +111,22 @@ export function JobsApplicationsSection() {
           >
             <Icon name="star" size={18} fill={job.saved ? 'currentColor' : 'none'} />
           </button>
-          <Button
-            size="sm"
-            disabled={job.applied || busy === job.id}
-            loading={busy === job.id}
-            onClick={() => apply(job.id)}
-          >
-            {job.applied ? 'Applied' : 'Apply'}
-          </Button>
+          {!profileComplete ? (
+            <Link href="/dashboard/profile">
+              <Button size="sm" variant="secondary">
+                <Icon name="lock" size={14} /> Verify to apply
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              size="sm"
+              disabled={job.applied || busy === job.id}
+              loading={busy === job.id}
+              onClick={() => apply(job.id)}
+            >
+              {job.applied ? 'Applied' : 'Apply'}
+            </Button>
+          )}
         </div>
       </Card>
     );
@@ -147,6 +161,25 @@ export function JobsApplicationsSection() {
     <div className="space-y-6">
       <h1 className="text-2xl">Jobs &amp; Applications</h1>
       {error ? <Alert tone="error">{error}</Alert> : null}
+
+      {!profileComplete ? (
+        <Card
+          className="flex flex-wrap items-center justify-between gap-3 p-4"
+          style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, white)' }}
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-[color:var(--accent)]">
+              <Icon name="lock" size={18} />
+            </span>
+            <p className="text-sm text-[#1E293B]">
+              Browse freely — but you&apos;ll need a verified profile &amp; 100-point ID to apply.
+            </p>
+          </div>
+          <Link href="/dashboard/profile">
+            <Button size="sm">Verify my profile →</Button>
+          </Link>
+        </Card>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {tabs.map((t) => (

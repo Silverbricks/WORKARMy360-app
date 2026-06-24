@@ -24,6 +24,8 @@ export function createPersonsClient(http: HttpClient) {
     setPhoto: (documentId: string) =>
       http.request<PersonProfile>('/persons/me/photo', { method: 'PUT', body: { documentId } }),
     complete: () => http.request<OkResponse>('/persons/me/complete', { method: 'POST' }),
+    setHireStatus: (hireStatus: string) =>
+      http.request<OkResponse>('/persons/me/hire-status', { method: 'PUT', body: { hireStatus } }),
     employers: () => http.request<EmployerSummary[]>('/persons/me/employers'),
     becomeProvider: (body: BecomeProviderInput) =>
       http.request<OrgSummary>('/persons/me/become-provider', { method: 'POST', body }),

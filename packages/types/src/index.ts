@@ -10,6 +10,7 @@ export * from './organisation';
 export * from './job';
 export * from './application';
 export * from './work';
+export * from './worklog';
 export * from './community';
 export * from './support';
 export * from './service';

@@ -4,7 +4,7 @@ import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, Button, Field, Input, PasswordInput, t } from '@workarmy/ui';
 import { passwordStrength, RegisterSchema } from '@workarmy/validation';
-import { api, setAccessToken, setAuthHint, WorkArmyApiError } from '@/lib/api';
+import { api, setAccessToken, setAuthHint } from '@/lib/api';
 import { apiFieldErrors, errorMessage, zodFieldErrors, type FieldErrors } from '@/lib/form';
 
 const STRENGTH_LABELS = ['Weak', 'Fair', 'Good', 'Strong'];
@@ -56,22 +56,13 @@ export function RegisterForm() {
     setErrors({});
     setSubmitting(true);
     try {
+      // Register now issues a session — the user always lands in the dashboard and
+      // verifies in-app (the OTP gate at boot blocks everything until verified).
       const res = await api.auth.register(parsed.data);
-      if (res.requiresVerification) {
-        router.push(`/verify?email=${encodeURIComponent(parsed.data.email)}`);
-        return;
-      }
-      // No email verification needed → log in straight away and go to the dashboard.
-      const auth = await api.auth.login({ email: parsed.data.email, password: parsed.data.password });
-      setAccessToken(auth.accessToken);
+      setAccessToken(res.accessToken);
       setAuthHint();
       router.push('/dashboard');
     } catch (err) {
-      // An unverified account already exists — a fresh code was just sent; finish verifying.
-      if (err instanceof WorkArmyApiError && err.code === 'EMAIL_NOT_VERIFIED') {
-        router.push(`/verify?email=${encodeURIComponent(parsed.data.email)}`);
-        return;
-      }
       setErrors(apiFieldErrors(err));
       setFormError(errorMessage(err));
     } finally {

@@ -119,6 +119,17 @@ export const ResumeShareSchema = z.object({ isPublic: z.boolean() });
 
 export const PhotoUpdateSchema = z.object({ documentId: z.string().trim().min(1).max(40) });
 
+export const HireStatusUpdateSchema = z.object({
+  hireStatus: z.enum(['AVAILABLE_NOW', 'AVAILABLE_SOON', 'OPEN', 'NOT_LOOKING']),
+});
+
+export const WorkLogInputSchema = z.object({
+  employer: z.string().trim().min(1, 'Employer is required').max(160),
+  date: z.string().trim().min(1).max(10),
+  hours: z.coerce.number().positive().max(24),
+  note: optionalText(500),
+});
+
 // --- work & earnings -------------------------------------------------------
 
 export const ShiftInputSchema = z.object({
@@ -265,6 +276,8 @@ export type VerificationRequestData = z.infer<typeof VerificationRequestSchema>;
 export type ResumeUpdateData = z.infer<typeof ResumeUpdateSchema>;
 export type ResumeShareData = z.infer<typeof ResumeShareSchema>;
 export type PhotoUpdateData = z.infer<typeof PhotoUpdateSchema>;
+export type HireStatusUpdateData = z.infer<typeof HireStatusUpdateSchema>;
+export type WorkLogInputData = z.infer<typeof WorkLogInputSchema>;
 export type ShiftInputData = z.infer<typeof ShiftInputSchema>;
 export type AssignInputData = z.infer<typeof AssignInputSchema>;
 export type ClockInputData = z.infer<typeof ClockInputSchema>;

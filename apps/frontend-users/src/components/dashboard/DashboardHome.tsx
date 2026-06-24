@@ -2,18 +2,30 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import type { CredentialView, MyApplication, PersonDetail, WorkerShift } from '@workarmy/types';
 import { Button, Card, Icon, formatCurrencyAUD, t, type IconName } from '@workarmy/ui';
 import { api } from '@/lib/api';
 import { useMe } from './DashboardShell';
+import { WorkerIdCard } from './WorkerIdCard';
 
 const QUICK_ACTIONS: { label: string; href: string; icon: IconName }[] = [
   { label: 'Complete profile', href: '/dashboard/profile', icon: 'user' },
-  { label: 'Find jobs', href: '/dashboard/jobs', icon: 'search' },
+  { label: 'Find jobs', href: '/dashboard/jobs?tab=find', icon: 'search' },
   { label: 'Upload resume', href: '/dashboard/resume', icon: 'file' },
   { label: 'Job preferences', href: '/dashboard/preferences', icon: 'sliders' },
   { label: 'Upload documents', href: '/dashboard/qualifications', icon: 'award' },
-  { label: 'My shifts', href: '/dashboard/work', icon: 'calendar' },
+  { label: 'My shifts', href: '/dashboard/work?tab=shifts', icon: 'calendar' },
 ];
+
+const stageTone: Record<string, string> = {
+  APPLIED: 'bg-[#EFF6FF] text-[#1E40AF]',
+  SHORTLISTED: 'bg-[#FEF9C3] text-[#854D0E]',
+  INTERVIEW: 'bg-[#F3E8FF] text-[#6B21A8]',
+  OFFERED: 'bg-[#DCFCE7] text-[#166534]',
+  HIRED: 'bg-[#DCFCE7] text-[#166534]',
+  REJECTED: 'bg-[#FEE2E2] text-[#991B1B]',
+  WITHDRAWN: 'bg-[#F1F5F9] text-[#64748B]',
+};
 
 interface Stats {
   applications: number;
@@ -24,7 +36,6 @@ interface Stats {
   earningsTotal: number;
   verified: number;
   pending: number;
-  unread: number;
 }
 
 function StatCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -36,25 +47,43 @@ function StatCard({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
+function shiftTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-AU', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function DashboardHome() {
   const me = useMe();
   const person = me?.person ?? null;
   const firstName = person?.firstName ?? '';
+  const name = `${person?.firstName ?? ''} ${person?.lastName ?? ''}`.trim() || 'Job Seeker';
   const initials =
     `${person?.firstName?.[0] ?? ''}${person?.lastName?.[0] ?? ''}`.toUpperCase() || 'WA';
   const completion = person?.profileCompleteness ?? (person?.profileComplete ? 100 : 0);
+  const profileComplete = person?.profileComplete ?? false;
+
   const [stats, setStats] = useState<Stats | null>(null);
+  const [shifts, setShifts] = useState<WorkerShift[]>([]);
+  const [recentApps, setRecentApps] = useState<MyApplication[]>([]);
+  const [photoId, setPhotoId] = useState<string | null>(null);
+  const [badges, setBadges] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const [apps, saved, payslips, verifications, notifications] = await Promise.all([
-          api.applications.mine().catch(() => []),
+        const [apps, saved, payslips, creds, myShifts, detail] = await Promise.all([
+          api.applications.mine().catch(() => [] as MyApplication[]),
           api.jobs.saved().catch(() => []),
           api.work.myPayslips().catch(() => []),
-          api.credentials.verifications().catch(() => []),
-          api.support.notifications().catch(() => []),
+          api.credentials.list().catch(() => [] as CredentialView[]),
+          api.work.myShifts().catch(() => [] as WorkerShift[]),
+          api.persons.getMe().catch(() => null as PersonDetail | null),
         ]);
         if (!active) return;
         const now = new Date();
@@ -78,10 +107,17 @@ export function DashboardHome() {
           earningsMonth,
           earningsYtd,
           earningsTotal,
-          verified: verifications.filter((v) => v.status === 'APPROVED').length,
-          pending: verifications.filter((v) => v.status === 'PENDING').length,
-          unread: notifications.filter((n) => !n.read).length,
+          verified: creds.filter((c) => c.verificationStatus === 'APPROVED').length,
+          pending: creds.filter((c) => c.verificationStatus === 'PENDING').length,
         });
+        setRecentApps(apps.slice(0, 4));
+        const upcoming = myShifts
+          .filter((s) => new Date(s.shift.endAt) >= now && s.shift.status !== 'CANCELLED')
+          .sort((a, b) => +new Date(a.shift.startAt) - +new Date(b.shift.startAt))
+          .slice(0, 4);
+        setShifts(upcoming);
+        setPhotoId(detail?.profile?.photoDocumentId ?? null);
+        setBadges(creds.filter((c) => c.verificationStatus === 'APPROVED').map((c) => c.type));
       } catch {
         // best-effort widgets
       }
@@ -108,36 +144,23 @@ export function DashboardHome() {
             <span className="font-mono text-[#1E293B]">{person?.waId ?? '—'}</span>
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {stats && stats.unread > 0 ? (
-            <Link
-              href="/dashboard/support"
-              className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-white"
-              style={{ backgroundColor: 'var(--accent)' }}
-            >
-              <Icon name="bell" size={13} /> {stats.unread} new
-            </Link>
-          ) : null}
-          <span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-xs font-medium text-[#64748B]">
-            {t('dashboard.widget.membership')}: {t('dashboard.membership.free')}
-          </span>
-          <span
-            className="rounded-full px-3 py-1 text-xs font-medium text-white"
-            style={{ backgroundColor: 'var(--accent)' }}
-          >
-            {person?.accountType.replace(/_/g, ' ') ?? 'JOB SEEKER'}
-          </span>
-        </div>
+        <span
+          className="rounded-full px-3 py-1 text-xs font-medium text-white"
+          style={{ backgroundColor: 'var(--accent)' }}
+        >
+          {person?.accountType.replace(/_/g, ' ') ?? 'JOB SEEKER'}
+        </span>
       </Card>
 
-      {/* Profile gate */}
-      {!person?.profileComplete ? (
+      {/* Apply-readiness nudge (profile only gates applying now) */}
+      {!profileComplete ? (
         <Card className="p-5" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, white)' }}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="font-medium text-[#1E293B]">Complete your profile to unlock your dashboard</p>
+              <p className="font-medium text-[#1E293B]">Verify your profile to apply for jobs</p>
               <p className="mt-0.5 text-sm text-[#64748B]">
-                Jobs, work &amp; earnings, messages and more stay locked until your profile is done.
+                Browse jobs, shifts and tasks freely — you only need a complete profile &amp;
+                100-point ID when you&apos;re ready to apply.
               </p>
             </div>
             <Link href="/dashboard/profile">
@@ -151,12 +174,11 @@ export function DashboardHome() {
       ) : (
         <Card className="flex items-center gap-2.5 p-4" style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}>
           <span className="text-[#16A34A]"><Icon name="check" size={18} /></span>
-          <p className="text-sm font-medium text-[#166534]">Profile complete — all features unlocked.</p>
+          <p className="text-sm font-medium text-[#166534]">Profile verified — you&apos;re ready to apply for jobs.</p>
         </Card>
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* Profile completion */}
         <StatCard title={t('dashboard.widget.profileCompletion')}>
           <div className="flex items-center justify-between">
             <span className="text-2xl font-semibold" style={{ color: 'var(--accent)' }}>
@@ -171,7 +193,6 @@ export function DashboardHome() {
           </div>
         </StatCard>
 
-        {/* Verification status */}
         <StatCard title={t('dashboard.widget.verification')}>
           <div className="flex items-end justify-between">
             <div>
@@ -188,7 +209,6 @@ export function DashboardHome() {
           </div>
         </StatCard>
 
-        {/* Employment overview */}
         <StatCard title={t('dashboard.widget.employment')}>
           <dl className="grid grid-cols-3 gap-3 text-sm">
             {[
@@ -204,7 +224,6 @@ export function DashboardHome() {
           </dl>
         </StatCard>
 
-        {/* Earnings summary */}
         <StatCard title={t('dashboard.widget.earnings')}>
           <dl className="space-y-1.5 text-sm">
             {[
@@ -220,7 +239,6 @@ export function DashboardHome() {
           </dl>
         </StatCard>
 
-        {/* Quick actions */}
         <Card className="p-5 md:col-span-2 lg:col-span-2">
           <p className="text-sm font-medium text-[#1E293B]">{t('dashboard.widget.quickActions')}</p>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -237,6 +255,74 @@ export function DashboardHome() {
           </div>
         </Card>
       </div>
+
+      {/* Worker ID + upcoming shifts + recent applications */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-2">
+          <WorkerIdCard
+            name={name}
+            waId={person?.waId ?? '—'}
+            initials={initials}
+            photoId={photoId}
+            badges={badges}
+            footer={
+              <Link href="/dashboard/worker-id" className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
+                Open my Worker ID →
+              </Link>
+            }
+          />
+        </div>
+
+        <Card className="p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[#1E293B]">My shifts this week</h2>
+            <Link href="/dashboard/work?tab=shifts" className="text-sm" style={{ color: 'var(--accent)' }}>
+              View all
+            </Link>
+          </div>
+          {shifts.length === 0 ? (
+            <p className="mt-3 text-sm text-[#94A3B8]">No upcoming shifts.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {shifts.map((s) => (
+                <li key={s.assignmentId} className="rounded-lg border border-[#E5E7EB] p-3">
+                  <p className="text-sm font-medium text-[#1E293B]">{s.shift.title}</p>
+                  <p className="text-xs text-[#64748B]">
+                    {s.org.name} · {shiftTime(s.shift.startAt)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      {/* Recent applications */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-[#1E293B]">Recent applications</h2>
+          <Link href="/dashboard/jobs?tab=applied" className="text-sm" style={{ color: 'var(--accent)' }}>
+            View all
+          </Link>
+        </div>
+        {recentApps.length === 0 ? (
+          <p className="mt-3 text-sm text-[#94A3B8]">You haven&apos;t applied to any jobs yet.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-[#F1F5F9]">
+            {recentApps.map((a) => (
+              <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[#1E293B]">{a.job.title}</p>
+                  <p className="truncate text-xs text-[#64748B]">{a.job.org.name}</p>
+                </div>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${stageTone[a.stage]}`}>
+                  {a.stage}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

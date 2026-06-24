@@ -11,8 +11,10 @@ import type {
 import { Alert, Button, Card, Field, Input, cn, formatCurrencyAUD } from '@workarmy/ui';
 import { api, PROVIDERS_URL } from '@/lib/api';
 import { errorMessage } from '@/lib/form';
+import { useTabParam } from '@/lib/use-tab-param';
 
 type Tab = 'shifts' | 'timesheets' | 'payslips' | 'employers';
+const WORK_TABS = ['shifts', 'timesheets', 'payslips', 'employers'] as const;
 
 const inputCls =
   'h-11 w-full rounded-lg border border-[#E5E7EB] bg-white px-3 text-[#1E293B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[color:var(--accent)]';
@@ -49,7 +51,7 @@ function getPosition(): Promise<{ lat?: number; lng?: number }> {
 }
 
 export function WorkSection() {
-  const [tab, setTab] = useState<Tab>('shifts');
+  const [tab, setTab] = useTabParam<Tab>(WORK_TABS, 'shifts');
   const [shifts, setShifts] = useState<WorkerShift[]>([]);
   const [timesheets, setTimesheets] = useState<TimesheetView[]>([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);

@@ -11,8 +11,10 @@ import type {
 import { Alert, Button, Card, Field, Input, cn } from '@workarmy/ui';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/form';
+import { useTabParam } from '@/lib/use-tab-param';
 
 type Tab = 'notifications' | 'messages' | 'report' | 'settings' | 'help';
+const SUPPORT_TABS = ['notifications', 'messages', 'report', 'settings', 'help'] as const;
 
 const inputCls =
   'h-11 w-full rounded-lg border border-[#E5E7EB] bg-white px-3 text-[#1E293B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[color:var(--accent)]';
@@ -22,7 +24,7 @@ const areaCls =
 const TICKET_CATEGORIES = ['Workplace', 'Payroll', 'Safety', 'Accommodation', 'Transport', 'Emergency', 'Other'];
 
 export function SupportSection() {
-  const [tab, setTab] = useState<Tab>('notifications');
+  const [tab, setTab] = useTabParam<Tab>(SUPPORT_TABS, 'notifications');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);

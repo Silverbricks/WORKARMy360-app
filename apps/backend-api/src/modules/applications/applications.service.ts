@@ -25,6 +25,17 @@ export class ApplicationsService {
 
   async apply(userId: string, jobId: string, input: ApplyInput): Promise<JobApplication> {
     const personId = await this.membership.requirePerson(userId);
+    // Gate 2: applying requires a completed/verified profile (browsing is open).
+    const person = await this.prisma.person.findUnique({
+      where: { id: personId },
+      select: { profileComplete: true },
+    });
+    if (!person?.profileComplete) {
+      throw ApiException.badRequest(
+        'VALIDATION_ERROR',
+        'Complete and verify your profile before applying for jobs.',
+      );
+    }
     const job = await this.prisma.job.findUnique({ where: { id: jobId }, select: { status: true } });
     if (!job || job.status !== 'PUBLISHED') throw ApiException.notFound('Job not available.');
 

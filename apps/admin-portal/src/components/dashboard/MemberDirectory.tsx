@@ -2,9 +2,11 @@
 
 import { type FormEvent, useEffect, useState } from 'react';
 import type { MemberDirectoryItem } from '@workarmy/types';
-import { Alert, Button, Card, Input } from '@workarmy/ui';
+import { Alert, Button, Card, Input, cn } from '@workarmy/ui';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/form';
+
+type Filter = 'all' | 'seekers' | 'orgs';
 
 export function MemberDirectory() {
   const [q, setQ] = useState('');
@@ -12,6 +14,7 @@ export function MemberDirectory() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>('all');
 
   async function load(query = '') {
     setLoading(true);
@@ -36,6 +39,20 @@ export function MemberDirectory() {
     void load(q);
   }
 
+  const isSeeker = (m: MemberDirectoryItem) =>
+    m.kind === 'person' && m.accountType === 'JOB_SEEKER';
+  const visible = items.filter((m) => {
+    if (filter === 'seekers') return isSeeker(m);
+    if (filter === 'orgs') return m.kind === 'organisation';
+    return true;
+  });
+
+  const filters: { key: Filter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: items.length },
+    { key: 'seekers', label: 'Job seekers', count: items.filter(isSeeker).length },
+    { key: 'orgs', label: 'Organisations', count: items.filter((m) => m.kind === 'organisation').length },
+  ];
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl">Member Directory</h1>
@@ -44,6 +61,23 @@ export function MemberDirectory() {
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, WA ID or email…" />
         <Button type="submit">Search</Button>
       </form>
+
+      <div className="flex flex-wrap gap-2">
+        {filters.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={cn(
+              'rounded-lg px-3 py-1.5 text-sm',
+              filter === f.key ? 'text-white' : 'bg-[#F1F5F9] text-[#64748B]',
+            )}
+            style={filter === f.key ? { backgroundColor: 'var(--accent)' } : undefined}
+          >
+            {f.label} ({f.count})
+          </button>
+        ))}
+      </div>
       <Card className="overflow-hidden p-0">
         <table className="w-full text-left text-sm">
           <thead className="bg-[#F8FAFC] text-[#64748B]">
@@ -59,12 +93,12 @@ export function MemberDirectory() {
               <tr>
                 <td colSpan={4} className="px-4 py-6 text-center text-[#64748B]">Loading…</td>
               </tr>
-            ) : items.length === 0 ? (
+            ) : visible.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-6 text-center text-[#64748B]">No members found.</td>
               </tr>
             ) : (
-              items.map((m) => (
+              visible.map((m) => (
                 <tr key={`${m.kind}-${m.id}`} className="border-t border-[#E5E7EB]">
                   <td className="px-4 py-2 font-mono text-xs">{m.waId}</td>
                   <td className="px-4 py-2 text-[#1E293B]">
@@ -81,7 +115,10 @@ export function MemberDirectory() {
           </tbody>
         </table>
       </Card>
-      <p className="text-sm text-[#64748B]">{total} member(s)</p>
+      <p className="text-sm text-[#64748B]">
+        Showing {visible.length} of {total} member(s)
+        {filter !== 'all' ? ` · ${filters.find((f) => f.key === filter)?.label}` : ''}
+      </p>
     </div>
   );
 }

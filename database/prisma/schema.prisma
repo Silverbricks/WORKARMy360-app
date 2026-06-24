@@ -256,6 +256,7 @@ model Person {
   supportTickets   SupportTicket[]
   conversations    Conversation[]
   serviceListings  ServiceListing[]
+  workLogs         WorkLog[]
 
   @@map("persons")
 }
@@ -839,6 +840,22 @@ model Message {
 
   @@index([conversationId])
   @@map("messages")
+}
+
+/// A personal manual timesheet entry (hours against a free-text employer).
+model WorkLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  personId  String   @map("person_id") @db.Uuid
+  employer  String
+  date      String // ISO YYYY-MM-DD
+  hours     Float
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@map("work_logs")
 }
 
 /// A worker-posted accommodation/transport listing (have / need / share).

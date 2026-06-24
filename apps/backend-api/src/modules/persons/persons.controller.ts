@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import {
   BecomeProviderSchema,
+  HireStatusUpdateSchema,
   PersonPreferencesUpdateSchema,
   PersonProfileUpdateSchema,
   PhotoUpdateSchema,
@@ -83,6 +84,14 @@ export class PersonsController {
   @Post('me/complete')
   markComplete(@CurrentUser() user: { sub: string }): Promise<OkResponse> {
     return this.persons.markComplete(user.sub);
+  }
+
+  @Put('me/hire-status')
+  setHireStatus(
+    @CurrentUser() user: { sub: string },
+    @Body(new ZodValidationPipe(HireStatusUpdateSchema)) dto: { hireStatus: string },
+  ): Promise<OkResponse> {
+    return this.persons.setHireStatus(user.sub, dto.hireStatus);
   }
 
   @Get('me/employers')

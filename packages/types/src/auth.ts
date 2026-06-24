@@ -17,11 +17,13 @@ export interface RegisterRequest {
 export interface RegisterResponse {
   userId: string;
   waId: string;
-  /** True when the account must verify its email before logging in (real email
-   * sender configured). When false the account is active immediately. */
+  /** True when the account still needs to verify its email/OTP (real email sender
+   * configured). The user is logged in either way and lands in the dashboard. */
   requiresVerification: boolean;
   /** ISO timestamp the verification OTP expires at (null when not required). */
   otpExpiresAt: string | null;
+  /** Access token — register now issues a session so the user lands in the dashboard. */
+  accessToken: string;
 }
 
 export interface VerifyEmailRequest {

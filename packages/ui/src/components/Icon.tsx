@@ -203,6 +203,33 @@ const PATHS = {
       <path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" />
     </>
   ),
+  menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+  chevronDown: <path d="m6 9 6 6 6-6" />,
+  copy: (
+    <>
+      <rect width="14" height="14" x="8" y="8" rx="2" />
+      <path d="M4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2" />
+    </>
+  ),
+  send: (
+    <>
+      <path d="M22 2 11 13" />
+      <path d="M22 2 15 22l-4-9-9-4z" />
+    </>
+  ),
+  helpCircle: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <path d="M12 17h.01" />
+    </>
+  ),
+  alertTriangle: (
+    <>
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <path d="M12 9v4M12 17h.01" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

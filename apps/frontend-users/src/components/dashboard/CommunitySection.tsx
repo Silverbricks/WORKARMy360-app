@@ -5,8 +5,10 @@ import type { Feedback, Group, GroupKind, KnowledgeArticle, KnowledgeSummary } f
 import { Alert, Button, Card, Field, Input, cn } from '@workarmy/ui';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/form';
+import { useTabParam } from '@/lib/use-tab-param';
 
 type Tab = 'knowledge' | 'groups' | 'feedback';
+const COMMUNITY_TABS = ['knowledge', 'groups', 'feedback'] as const;
 
 const inputCls =
   'h-11 w-full rounded-lg border border-[#E5E7EB] bg-white px-3 text-[#1E293B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[color:var(--accent)]';
@@ -14,7 +16,7 @@ const areaCls =
   'min-h-[90px] w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-[#1E293B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[color:var(--accent)]';
 
 export function CommunitySection() {
-  const [tab, setTab] = useState<Tab>('knowledge');
+  const [tab, setTab] = useTabParam<Tab>(COMMUNITY_TABS, 'knowledge');
   const [articles, setArticles] = useState<KnowledgeSummary[]>([]);
   const [open, setOpen] = useState<KnowledgeArticle | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);

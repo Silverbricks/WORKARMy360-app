@@ -128,6 +128,16 @@ export class PersonsService {
     return [...map.values()];
   }
 
+  async setHireStatus(userId: string, hireStatus: string): Promise<{ ok: true }> {
+    const personId = await this.membership.requirePerson(userId);
+    await this.prisma.personProfile.upsert({
+      where: { personId },
+      update: { hireStatus },
+      create: { personId, hireStatus, completeness: 0 },
+    });
+    return { ok: true as const };
+  }
+
   async markComplete(userId: string): Promise<{ ok: true }> {
     const personId = await this.membership.requirePerson(userId);
     await this.prisma.person.update({ where: { id: personId }, data: { profileComplete: true } });

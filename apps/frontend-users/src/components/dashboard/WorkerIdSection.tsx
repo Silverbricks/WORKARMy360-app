@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import type { CredentialView, DocumentView, PersonDetail, ResumeView } from '@workarmy/types';
-import { Alert, Card, Icon } from '@workarmy/ui';
-import { api, fileDownloadUrl } from '@/lib/api';
+import { Alert, Card } from '@workarmy/ui';
+import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/form';
 import { FileUploadButton } from './FileUploadButton';
+import { WorkerIdCard } from './WorkerIdCard';
 
 export function WorkerIdSection() {
   const [me, setMe] = useState<PersonDetail | null>(null);
@@ -78,39 +79,20 @@ export function WorkerIdSection() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* ID card */}
-        <Card className="overflow-hidden p-0">
-          <div className="px-5 py-3 text-sm font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>
-            WorkArmy Digital ID
-          </div>
-          <div className="flex items-center gap-4 p-5">
-            {photoId ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={fileDownloadUrl(photoId)} alt={name} className="h-20 w-20 rounded-full object-cover" />
-            ) : (
-              <span className="grid h-20 w-20 place-items-center rounded-full text-xl font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>
-                {initials}
-              </span>
-            )}
-            <div className="min-w-0">
-              <div className="text-lg font-semibold text-[#1E293B]">{name}</div>
-              <div className="font-mono text-sm text-[#64748B]">{me.waId}</div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {approved.length === 0 ? (
-                  <span className="text-xs text-[#94A3B8]">No verified badges yet</span>
-                ) : (
-                  approved.map((c) => (
-                    <span key={c.id} className="inline-flex items-center gap-1 rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-medium text-[#166534]">
-                      <Icon name="check" size={12} /> {c.type}
-                    </span>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-[#E5E7EB] p-4">
-            <FileUploadButton kind="OTHER" label={photoId ? 'Change photo' : 'Upload photo'} onUploaded={onPhoto} />
-          </div>
-        </Card>
+        <WorkerIdCard
+          name={name}
+          waId={me.waId}
+          initials={initials}
+          photoId={photoId}
+          badges={approved.map((c) => c.type)}
+          footer={
+            <FileUploadButton
+              kind="OTHER"
+              label={photoId ? 'Change photo' : 'Upload photo'}
+              onUploaded={onPhoto}
+            />
+          }
+        />
 
         {/* QR Worker Pass */}
         <Card className="p-5">
