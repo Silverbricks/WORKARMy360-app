@@ -10,6 +10,7 @@ import { FilesModule } from './modules/files/files.module';
 import { CredentialsModule } from './modules/credentials/credentials.module';
 import { ResumeModule } from './modules/resume/resume.module';
 import { WorkModule } from './modules/work/work.module';
+import { CommunityModule } from './modules/community/community.module';
 import { OrganisationsModule } from './modules/organisations/organisations.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ApplicationsModule } from './modules/applications/applications.module';
@@ -26,6 +27,7 @@ import { AdminModule } from './modules/admin/admin.module';
     CredentialsModule,
     ResumeModule,
     WorkModule,
+    CommunityModule,
     OrganisationsModule,
     JobsModule,
     ApplicationsModule,

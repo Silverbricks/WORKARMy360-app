@@ -131,6 +131,11 @@ enum SwapStatus {
   CANCELLED
 }
 
+enum GroupKind {
+  POOL
+  TEAM
+}
+
 // --- WA ID -----------------------------------------------------------------
 
 /// Single global, atomic counter. One monotonic WA###### sequence shared by
@@ -225,9 +230,11 @@ model Person {
   documents      Document[]
   credentials    Credential[]
   verifications  Verification[]
-  assignments    ShiftAssignment[]
-  timesheets     Timesheet[]
-  payslips       Payslip[]
+  assignments      ShiftAssignment[]
+  timesheets       Timesheet[]
+  payslips         Payslip[]
+  groupMemberships GroupMember[]
+  feedback         Feedback[]
 
   @@map("persons")
 }
@@ -673,6 +680,63 @@ model ShiftSwapRequest {
 
   @@index([assignmentId])
   @@map("shift_swap_requests")
+}
+
+// --- community (knowledge, groups/pools/teams, feedback) -------------------
+
+model KnowledgeArticle {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  title     String
+  category  String // Pay rates / Work rights / How-to / Skills / Stories
+  body      String
+  published Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([category])
+  @@map("knowledge_articles")
+}
+
+model Group {
+  id            String      @id @default(uuid()) @db.Uuid
+  kind          GroupKind   @default(POOL)
+  name          String
+  description   String?
+  ownerPersonId String      @map("owner_person_id") @db.Uuid
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  members GroupMember[]
+
+  @@index([kind])
+  @@map("groups")
+}
+
+model GroupMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  personId  String   @map("person_id") @db.Uuid
+  role      String   @default("member")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, personId])
+  @@index([personId])
+  @@map("group_members")
+}
+
+model Feedback {
+  id        String   @id @default(uuid()) @db.Uuid
+  personId  String   @map("person_id") @db.Uuid
+  kind      String // idea / product / feature
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@map("feedback")
 }
 
 // --- OTP & password reset (hashed, attempt-capped) -------------------------

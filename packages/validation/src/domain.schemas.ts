@@ -165,6 +165,19 @@ export const BecomeProviderSchema = z.object({
   companyName: z.string().trim().min(2, 'Organisation name is required').max(160),
 });
 
+// --- community -------------------------------------------------------------
+
+export const GroupInputSchema = z.object({
+  kind: z.enum(['POOL', 'TEAM']),
+  name: z.string().trim().min(2, 'Name is required').max(120),
+  description: optionalText(500),
+});
+
+export const FeedbackInputSchema = z.object({
+  kind: z.string().trim().min(1).max(40),
+  message: z.string().trim().min(2, 'Message is required').max(2000),
+});
+
 // --- jobs ------------------------------------------------------------------
 
 export const JobInputSchema = z.object({
@@ -225,6 +238,8 @@ export type ClockInputData = z.infer<typeof ClockInputSchema>;
 export type SwapRequestInputData = z.infer<typeof SwapRequestInputSchema>;
 export type PayslipInputData = z.infer<typeof PayslipInputSchema>;
 export type BecomeProviderData = z.infer<typeof BecomeProviderSchema>;
+export type GroupInputData = z.infer<typeof GroupInputSchema>;
+export type FeedbackInputData = z.infer<typeof FeedbackInputSchema>;
 export type JobInputData = z.infer<typeof JobInputSchema>;
 export type JobBrowseQueryData = z.infer<typeof JobBrowseQuerySchema>;
 export type ApplyInputData = z.infer<typeof ApplyInputSchema>;

@@ -7,6 +7,7 @@ import { QualificationsSection } from '@/components/dashboard/QualificationsSect
 import { ResumeSection } from '@/components/dashboard/ResumeSection';
 import { WorkerIdSection } from '@/components/dashboard/WorkerIdSection';
 import { WorkSection } from '@/components/dashboard/WorkSection';
+import { CommunitySection } from '@/components/dashboard/CommunitySection';
 import { getSection, STUB_SLUGS } from '@/lib/dashboard-sections';
 
 // Only the known sections are valid; anything else 404s. Fully static.
@@ -31,6 +32,7 @@ export default async function DashboardSectionPage({
   if (data.slug === 'resume') return <ResumeSection />;
   if (data.slug === 'worker-id') return <WorkerIdSection />;
   if (data.slug === 'work') return <WorkSection />;
+  if (data.slug === 'community') return <CommunitySection />;
   if (data.slug === 'jobs') return <JobsApplicationsSection />;
   return <SectionStub section={data} />;
 }
