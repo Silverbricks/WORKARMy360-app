@@ -203,6 +203,14 @@ export const SendMessageSchema = z.object({
   body: z.string().trim().min(1, 'Message is required').max(4000),
 });
 
+export const ServiceListingInputSchema = z.object({
+  category: z.enum(['ACCOMMODATION', 'TRANSPORT']),
+  kind: z.enum(['HAVE', 'NEED', 'SHARE']),
+  title: z.string().trim().min(2, 'Title is required').max(160),
+  details: optionalText(1000),
+  location: optionalText(160),
+});
+
 // --- jobs ------------------------------------------------------------------
 
 export const JobInputSchema = z.object({
@@ -269,6 +277,7 @@ export type SupportTicketInputData = z.infer<typeof SupportTicketInputSchema>;
 export type UserSettingsUpdateData = z.infer<typeof UserSettingsUpdateSchema>;
 export type StartConversationData = z.infer<typeof StartConversationSchema>;
 export type SendMessageData = z.infer<typeof SendMessageSchema>;
+export type ServiceListingInputData = z.infer<typeof ServiceListingInputSchema>;
 export type JobInputData = z.infer<typeof JobInputSchema>;
 export type JobBrowseQueryData = z.infer<typeof JobBrowseQuerySchema>;
 export type ApplyInputData = z.infer<typeof ApplyInputSchema>;

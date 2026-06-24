@@ -141,6 +141,17 @@ enum TicketStatus {
   RESOLVED
 }
 
+enum ServiceCategory {
+  ACCOMMODATION
+  TRANSPORT
+}
+
+enum ServiceKind {
+  HAVE
+  NEED
+  SHARE
+}
+
 // --- WA ID -----------------------------------------------------------------
 
 /// Single global, atomic counter. One monotonic WA###### sequence shared by
@@ -244,6 +255,7 @@ model Person {
   feedback         Feedback[]
   supportTickets   SupportTicket[]
   conversations    Conversation[]
+  serviceListings  ServiceListing[]
 
   @@map("persons")
 }
@@ -827,6 +839,23 @@ model Message {
 
   @@index([conversationId])
   @@map("messages")
+}
+
+/// A worker-posted accommodation/transport listing (have / need / share).
+model ServiceListing {
+  id        String          @id @default(uuid()) @db.Uuid
+  personId  String          @map("person_id") @db.Uuid
+  category  ServiceCategory
+  kind      ServiceKind
+  title     String
+  details   String?
+  location  String?
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([category])
+  @@map("service_listings")
 }
 
 // --- OTP & password reset (hashed, attempt-capped) -------------------------

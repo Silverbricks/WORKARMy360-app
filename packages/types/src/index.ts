@@ -12,4 +12,5 @@ export * from './application';
 export * from './work';
 export * from './community';
 export * from './support';
+export * from './service';
 export * from './admin';

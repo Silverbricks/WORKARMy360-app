@@ -1,19 +1,31 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, Icon, formatCurrencyAUD, t, type IconName } from '@workarmy/ui';
+import { api } from '@/lib/api';
 import { useMe } from './DashboardShell';
-
-const VERIFICATION_ROWS = ['Identity', 'Right to work', 'Licence', 'Compliance'];
 
 const QUICK_ACTIONS: { label: string; href: string; icon: IconName }[] = [
   { label: 'Complete profile', href: '/dashboard/profile', icon: 'user' },
   { label: 'Find jobs', href: '/dashboard/jobs', icon: 'search' },
   { label: 'Upload resume', href: '/dashboard/resume', icon: 'file' },
-  { label: 'Update availability', href: '/dashboard/profile', icon: 'calendar' },
+  { label: 'Job preferences', href: '/dashboard/preferences', icon: 'sliders' },
   { label: 'Upload documents', href: '/dashboard/qualifications', icon: 'award' },
-  { label: 'View applications', href: '/dashboard/jobs', icon: 'briefcase' },
+  { label: 'My shifts', href: '/dashboard/work', icon: 'calendar' },
 ];
+
+interface Stats {
+  applications: number;
+  interviews: number;
+  saved: number;
+  earningsMonth: number;
+  earningsYtd: number;
+  earningsTotal: number;
+  verified: number;
+  pending: number;
+  unread: number;
+}
 
 function StatCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -31,6 +43,53 @@ export function DashboardHome() {
   const initials =
     `${person?.firstName?.[0] ?? ''}${person?.lastName?.[0] ?? ''}`.toUpperCase() || 'WA';
   const completion = person?.profileCompleteness ?? (person?.profileComplete ? 100 : 0);
+  const [stats, setStats] = useState<Stats | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [apps, saved, payslips, verifications, notifications] = await Promise.all([
+          api.applications.mine().catch(() => []),
+          api.jobs.saved().catch(() => []),
+          api.work.myPayslips().catch(() => []),
+          api.credentials.verifications().catch(() => []),
+          api.support.notifications().catch(() => []),
+        ]);
+        if (!active) return;
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        let earningsMonth = 0;
+        let earningsYtd = 0;
+        let earningsTotal = 0;
+        for (const p of payslips) {
+          earningsTotal += p.netPay;
+          const d = new Date(p.createdAt);
+          if (d.getFullYear() === year) {
+            earningsYtd += p.netPay;
+            if (d.getMonth() === month) earningsMonth += p.netPay;
+          }
+        }
+        setStats({
+          applications: apps.length,
+          interviews: apps.filter((a) => a.stage === 'INTERVIEW').length,
+          saved: saved.length,
+          earningsMonth,
+          earningsYtd,
+          earningsTotal,
+          verified: verifications.filter((v) => v.status === 'APPROVED').length,
+          pending: verifications.filter((v) => v.status === 'PENDING').length,
+          unread: notifications.filter((n) => !n.read).length,
+        });
+      } catch {
+        // best-effort widgets
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -49,7 +108,16 @@ export function DashboardHome() {
             <span className="font-mono text-[#1E293B]">{person?.waId ?? '—'}</span>
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {stats && stats.unread > 0 ? (
+            <Link
+              href="/dashboard/support"
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-white"
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              <Icon name="bell" size={13} /> {stats.unread} new
+            </Link>
+          ) : null}
           <span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-xs font-medium text-[#64748B]">
             {t('dashboard.widget.membership')}: {t('dashboard.membership.free')}
           </span>
@@ -74,35 +142,36 @@ export function DashboardHome() {
             </Link>
           </div>
           <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#E5E7EB]">
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${completion}%`, backgroundColor: 'var(--accent)' }}
-            />
+            <div className="h-full rounded-full" style={{ width: `${completion}%`, backgroundColor: 'var(--accent)' }} />
           </div>
         </StatCard>
 
-        {/* Verification status (distinct from completion — Principle 4) */}
+        {/* Verification status */}
         <StatCard title={t('dashboard.widget.verification')}>
-          <ul className="space-y-1.5 text-sm">
-            {VERIFICATION_ROWS.map((row) => (
-              <li key={row} className="flex items-center justify-between">
-                <span className="text-[#1E293B]">{row}</span>
-                <span className="text-[#94A3B8]">{t('dashboard.verification.notStarted')}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="flex items-end justify-between">
+            <div>
+              <div className="text-2xl font-semibold text-[#16A34A]">{stats?.verified ?? 0}</div>
+              <div className="text-xs text-[#64748B]">verified</div>
+            </div>
+            <div className="text-right">
+              <div className="text-lg font-semibold text-[#854D0E]">{stats?.pending ?? 0}</div>
+              <div className="text-xs text-[#64748B]">pending</div>
+            </div>
+            <Link href="/dashboard/qualifications" className="text-sm" style={{ color: 'var(--accent)' }}>
+              Manage
+            </Link>
+          </div>
         </StatCard>
 
         {/* Employment overview */}
         <StatCard title={t('dashboard.widget.employment')}>
-          <dl className="grid grid-cols-2 gap-3 text-sm">
+          <dl className="grid grid-cols-3 gap-3 text-sm">
             {[
-              ['New matches', '0'],
-              ['Applications', '0'],
-              ['Interviews', '0'],
-              ['Status', 'Looking'],
+              ['Applications', stats?.applications ?? 0],
+              ['Interviews', stats?.interviews ?? 0],
+              ['Saved', stats?.saved ?? 0],
             ].map(([label, value]) => (
-              <div key={label}>
+              <div key={label as string}>
                 <dt className="text-[#64748B]">{label}</dt>
                 <dd className="text-lg font-semibold text-[#1E293B]">{value}</dd>
               </div>
@@ -114,9 +183,9 @@ export function DashboardHome() {
         <StatCard title={t('dashboard.widget.earnings')}>
           <dl className="space-y-1.5 text-sm">
             {[
-              ['This week', 0],
-              ['This month', 0],
-              ['Year to date', 0],
+              ['This month', stats?.earningsMonth ?? 0],
+              ['Year to date', stats?.earningsYtd ?? 0],
+              ['Total', stats?.earningsTotal ?? 0],
             ].map(([label, value]) => (
               <div key={label as string} className="flex items-center justify-between">
                 <dt className="text-[#64748B]">{label}</dt>
