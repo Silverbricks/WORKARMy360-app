@@ -39,6 +39,7 @@ export class UsersService {
             lastName: user.person.lastName,
             profileComplete: user.person.profileComplete,
             profileCompleteness: user.person.profile?.completeness ?? 0,
+            mobileVerified: user.person.mobileVerified,
           }
         : null,
       organisation: membership

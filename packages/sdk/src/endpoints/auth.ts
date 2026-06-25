@@ -10,6 +10,7 @@ import type {
   ResendOtpResponse,
   ResetPasswordRequest,
   VerifyEmailRequest,
+  VerifyMobileRequest,
 } from '@workarmy/types';
 import type { HttpClient } from '../http';
 
@@ -23,6 +24,12 @@ export function createAuthClient(http: HttpClient) {
 
     resendOtp: (body: ResendOtpRequest) =>
       http.request<ResendOtpResponse>('/auth/resend-otp', { method: 'POST', body }),
+
+    sendMobileOtp: (body: ResendOtpRequest) =>
+      http.request<ResendOtpResponse>('/auth/send-mobile-otp', { method: 'POST', body }),
+
+    verifyMobile: (body: VerifyMobileRequest) =>
+      http.request<AuthTokenResponse>('/auth/verify-mobile', { method: 'POST', body }),
 
     login: (body: LoginRequest) =>
       http.request<AuthTokenResponse>('/auth/login', { method: 'POST', body }),

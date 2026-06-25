@@ -4,6 +4,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtAccessGuard } from './common/guards/jwt-access.guard';
 import { MembershipModule } from './common/membership/membership.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SmsModule } from './modules/sms/sms.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PersonsModule } from './modules/persons/persons.module';
 import { FilesModule } from './modules/files/files.module';
@@ -28,6 +29,7 @@ import { AdminModule } from './modules/admin/admin.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
     MembershipModule,
+    SmsModule,
     AuthModule,
     PersonsModule,
     FilesModule,

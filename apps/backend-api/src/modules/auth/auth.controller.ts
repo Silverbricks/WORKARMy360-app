@@ -7,6 +7,7 @@ import {
   ResendOtpSchema,
   ResetPasswordSchema,
   VerifyEmailSchema,
+  VerifyMobileSchema,
 } from '@workarmy/validation';
 import type {
   AuthTokenResponse,
@@ -95,6 +96,28 @@ export class AuthController {
     @Body(new ZodValidationPipe(ResendOtpSchema)) dto: import('@workarmy/validation').ResendOtpInput,
   ): Promise<ResendOtpResponse> {
     return this.auth.resendOtp(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 3_600_000 } })
+  @Post('send-mobile-otp')
+  async sendMobileOtp(
+    @Body(new ZodValidationPipe(ResendOtpSchema)) dto: import('@workarmy/validation').ResendOtpInput,
+  ): Promise<ResendOtpResponse> {
+    return this.auth.sendMobileOtp(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('verify-mobile')
+  async verifyMobile(
+    @Body(new ZodValidationPipe(VerifyMobileSchema)) dto: import('@workarmy/validation').VerifyMobileInput,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthTokenResponse> {
+    const tokens = await this.auth.verifyMobile(dto, requestContext(req));
+    this.setRefreshCookie(res, tokens.refresh);
+    return { accessToken: tokens.accessToken };
   }
 
   @Public()

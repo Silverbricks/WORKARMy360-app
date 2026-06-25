@@ -4,6 +4,7 @@ export type ApiErrorCode =
   | 'INVALID_CREDENTIALS'
   | 'ACCOUNT_LOCKED'
   | 'EMAIL_TAKEN'
+  | 'MOBILE_TAKEN'
   | 'EMAIL_NOT_VERIFIED'
   | 'OTP_INVALID'
   | 'OTP_EXPIRED'

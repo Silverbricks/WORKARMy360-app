@@ -17,6 +17,25 @@ export function VerifyScreen({ email }: { email: string }) {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [mobileSent, setMobileSent] = useState(false);
+
+  async function selectChannel(ch: 'email' | 'mobile') {
+    setChannel(ch);
+    setCode('');
+    setInvalid(false);
+    setError(null);
+    setInfo(null);
+    // First time the user picks Mobile, text them a code automatically.
+    if (ch === 'mobile' && !mobileSent) {
+      try {
+        await api.auth.sendMobileOtp({ email });
+        setMobileSent(true);
+        setInfo('We’ve texted a 6-digit code to your mobile.');
+      } catch (err) {
+        setError(errorMessage(err));
+      }
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -29,7 +48,8 @@ export function VerifyScreen({ email }: { email: string }) {
     }
     setSubmitting(true);
     try {
-      await api.auth.verifyEmail({ email, code });
+      if (channel === 'mobile') await api.auth.verifyMobile({ email, code });
+      else await api.auth.verifyEmail({ email, code });
       // Reload so the shell re-reads /me and unlocks the dashboard.
       window.location.href = '/dashboard';
     } catch (err) {
@@ -43,8 +63,13 @@ export function VerifyScreen({ email }: { email: string }) {
     setError(null);
     setInfo(null);
     try {
-      await api.auth.resendOtp({ email });
-      setInfo('A fresh code is on its way.');
+      if (channel === 'mobile') {
+        await api.auth.sendMobileOtp({ email });
+        setInfo('A fresh code has been texted to you.');
+      } else {
+        await api.auth.resendOtp({ email });
+        setInfo('A fresh code is on its way.');
+      }
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -78,57 +103,54 @@ export function VerifyScreen({ email }: { email: string }) {
         </div>
 
         <div className="mb-4 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setChannel('email')}
-            className="flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition"
-            style={
-              channel === 'email'
-                ? { borderColor: 'var(--accent)', color: 'var(--accent)', backgroundColor: 'color-mix(in srgb, var(--accent) 8%, white)' }
-                : { borderColor: '#E5E7EB', color: '#64748B' }
-            }
-          >
-            Email
-          </button>
-          <button
-            type="button"
-            disabled
-            className="flex-1 cursor-not-allowed rounded-lg border border-[#E5E7EB] px-3 py-2 text-sm font-medium text-[#94A3B8]"
-            title="SMS verification is coming soon"
-          >
-            Mobile · soon
-          </button>
+          {(['email', 'mobile'] as const).map((ch) => (
+            <button
+              key={ch}
+              type="button"
+              onClick={() => selectChannel(ch)}
+              className="flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize transition"
+              style={
+                channel === ch
+                  ? { borderColor: 'var(--accent)', color: 'var(--accent)', backgroundColor: 'color-mix(in srgb, var(--accent) 8%, white)' }
+                  : { borderColor: '#E5E7EB', color: '#64748B' }
+              }
+            >
+              {ch}
+            </button>
+          ))}
         </div>
 
-        {channel === 'email' ? (
-          <form onSubmit={onSubmit} className="space-y-4">
-            {error ? <Alert tone="error">{error}</Alert> : null}
-            {info ? <Alert tone="success">{info}</Alert> : null}
-            <p className="text-sm text-[#64748B]">
-              Enter the 6-digit code we sent to <span className="font-medium text-[#1E293B]">{email}</span>.
-            </p>
-            <OtpInput
-              value={code}
-              onChange={(v) => {
-                setCode(v);
-                setInvalid(false);
-              }}
-              invalid={invalid}
-              autoFocus
-            />
-            <Button type="submit" fullWidth loading={submitting}>
-              Verify &amp; unlock dashboard
-            </Button>
-            <button
-              type="button"
-              onClick={resend}
-              className="w-full text-center text-sm"
-              style={{ color: 'var(--accent)' }}
-            >
-              Resend code
-            </button>
-          </form>
-        ) : null}
+        <form onSubmit={onSubmit} className="space-y-4">
+          {error ? <Alert tone="error">{error}</Alert> : null}
+          {info ? <Alert tone="success">{info}</Alert> : null}
+          <p className="text-sm text-[#64748B]">
+            {channel === 'mobile' ? (
+              <>Enter the 6-digit code we texted to your mobile.</>
+            ) : (
+              <>Enter the 6-digit code we sent to <span className="font-medium text-[#1E293B]">{email}</span>.</>
+            )}
+          </p>
+          <OtpInput
+            value={code}
+            onChange={(v) => {
+              setCode(v);
+              setInvalid(false);
+            }}
+            invalid={invalid}
+            autoFocus
+          />
+          <Button type="submit" fullWidth loading={submitting}>
+            Verify &amp; unlock dashboard
+          </Button>
+          <button
+            type="button"
+            onClick={resend}
+            className="w-full text-center text-sm"
+            style={{ color: 'var(--accent)' }}
+          >
+            Resend code
+          </button>
+        </form>
       </Card>
 
       {/* Step 2 — profile + 100-pt ID (needed to apply only) */}

@@ -30,11 +30,13 @@ enum AuthIdentityProvider {
 }
 
 enum OtpPurpose {
-  EMAIL_VERIFICATION // LOGIN_2FA etc. added later
+  EMAIL_VERIFICATION
+  MOBILE_VERIFICATION // LOGIN_2FA etc. added later
 }
 
 enum OtpChannel {
-  EMAIL // SMS added later
+  EMAIL
+  SMS
 }
 
 enum UserStatus {
@@ -46,6 +48,7 @@ enum UserStatus {
 enum AuditAction {
   USER_REGISTERED
   EMAIL_VERIFIED
+  MOBILE_VERIFIED
   LOGIN_SUCCESS
   LOGIN_FAILED
   LOGOUT
@@ -233,7 +236,8 @@ model Person {
   accountType     AccountType @map("account_type") // attribute, not a table
   firstName       String?     @map("first_name")
   lastName        String?     @map("last_name")
-  mobile          String? // AU normalised, e.g. 0412345678
+  mobile          String?     @unique // AU normalised, e.g. 0412345678 — one account per number
+  mobileVerified  Boolean     @default(false) @map("mobile_verified") // SMS OTP confirmed
   profileComplete Boolean     @default(false) @map("profile_complete") // != compliance
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")

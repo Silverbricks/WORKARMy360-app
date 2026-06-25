@@ -64,7 +64,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     };
   }, [router]);
 
-  const verified = me?.user.emailVerified ?? false;
+  // Gate 1 unlocks on EITHER a verified email or a verified mobile (SMS OTP).
+  const verified = (me?.user.emailVerified || me?.person?.mobileVerified) ?? false;
 
   // Topbar dropdown data — only once the dashboard is unlocked.
   useEffect(() => {

@@ -22,6 +22,8 @@ export interface PersonSummary {
   profileComplete: boolean;
   /** Profile completeness percentage (0–100), for the dashboard progress widget. */
   profileCompleteness: number;
+  /** Mobile number confirmed via SMS OTP (an alternative to email for Gate 1). */
+  mobileVerified: boolean;
 }
 
 export interface MeResponse {

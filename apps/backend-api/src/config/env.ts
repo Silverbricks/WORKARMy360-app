@@ -20,6 +20,13 @@ const EnvSchema = z.object({
   EMAIL_FROM: z.string().default('WorkArmy <no-reply@workarmy.co>'),
   RESEND_API_KEY: z.string().optional(),
 
+  // SMS (mobile OTP). 'console' logs the code; 'twilio' sends real texts.
+  SMS_PROVIDER: z.enum(['console', 'twilio']).default('console'),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  // A Twilio number, an alphanumeric sender ID (AU), or a Messaging Service SID (MG…).
+  TWILIO_FROM: z.string().optional(),
+
   // File uploads (stored on the server disk).
   UPLOAD_DIR: z.string().default('./uploads'),
   MAX_UPLOAD_MB: z.coerce.number().int().positive().default(10),

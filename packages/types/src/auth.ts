@@ -31,6 +31,11 @@ export interface VerifyEmailRequest {
   code: string;
 }
 
+export interface VerifyMobileRequest {
+  email: string;
+  code: string;
+}
+
 export interface ResendOtpRequest {
   email: string;
 }

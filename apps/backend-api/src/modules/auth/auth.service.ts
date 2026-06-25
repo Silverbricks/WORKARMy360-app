@@ -18,6 +18,7 @@ import type {
   ResendOtpInput,
   ResetPasswordInput,
   VerifyEmailInput,
+  VerifyMobileInput,
 } from '@workarmy/validation';
 import { env } from '../../config/env';
 import { ApiException } from '../../common/errors/api-exception';
@@ -38,9 +39,12 @@ export interface AuthTokens {
  * Email verification is only enforced when a real email sender is configured.
  * With the console provider (no outbound email) accounts are auto-activated, so
  * the platform is usable; switching EMAIL_PROVIDER to 'resend' turns real
- * verification back on for everyone automatically.
+ * verification back on for everyone automatically. The same applies to SMS: a
+ * real Twilio sender also turns verification on (via the mobile channel).
  */
-const VERIFICATION_REQUIRED = env.EMAIL_PROVIDER === 'resend';
+const VERIFICATION_REQUIRED = env.EMAIL_PROVIDER === 'resend' || env.SMS_PROVIDER === 'twilio';
+/** The channel an OTP is issued on at registration (whichever sender is real). */
+const PRIMARY_CHANNEL: 'EMAIL' | 'SMS' = env.EMAIL_PROVIDER === 'resend' ? 'EMAIL' : 'SMS';
 
 @Injectable()
 export class AuthService {
@@ -72,6 +76,17 @@ export class AuthService {
       throw ApiException.conflict(
         'EMAIL_TAKEN',
         'An account with this email already exists. Please log in.',
+      );
+    }
+    // One account per mobile number (Person.mobile is unique).
+    const mobileTaken = await this.prisma.person.findUnique({
+      where: { mobile: dto.mobile },
+      select: { id: true },
+    });
+    if (mobileTaken) {
+      throw ApiException.conflict(
+        'MOBILE_TAKEN',
+        'An account with this mobile number already exists. Please log in.',
       );
     }
 
@@ -136,7 +151,7 @@ export class AuthService {
 
     let otpExpiresAt: string | null = null;
     if (VERIFICATION_REQUIRED) {
-      const exp = await this.otp.issue(user);
+      const exp = await this.otp.issue({ ...user, mobile: dto.mobile }, PRIMARY_CHANNEL);
       await this.audit.record('OTP_SENT', { userId: user.id, ip: ctx.ip });
       otpExpiresAt = exp.toISOString();
     }
@@ -176,6 +191,45 @@ export class AuthService {
     });
 
     await this.audit.record('EMAIL_VERIFIED', { userId: user.id, ip: ctx.ip });
+    await this.audit.record('LOGIN_SUCCESS', { userId: user.id, ip: ctx.ip, userAgent: ctx.userAgent });
+    return this.issueTokens(updated, ctx);
+  }
+
+  /** Send a verification code by SMS to the account's mobile. */
+  async sendMobileOtp(dto: ResendOtpInput) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      include: { person: { select: { mobile: true, mobileVerified: true } } },
+    });
+    // Don't reveal whether the account exists or is already verified.
+    if (!user || !user.person?.mobile || user.person.mobileVerified) {
+      return { otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() };
+    }
+    const exp = await this.otp.issue(
+      { id: user.id, email: user.email, mobile: user.person.mobile },
+      'SMS',
+    );
+    await this.audit.record('OTP_SENT', { userId: user.id });
+    return { otpExpiresAt: exp.toISOString() };
+  }
+
+  async verifyMobile(dto: VerifyMobileInput, ctx: RequestContext): Promise<AuthTokens> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      include: { person: { select: { id: true } } },
+    });
+    if (!user || !user.person) {
+      throw ApiException.badRequest('OTP_INVALID', 'Enter the code we texted you.');
+    }
+
+    await this.otp.verify(user.id, dto.code, 'SMS');
+
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.person.update({ where: { id: user.person.id }, data: { mobileVerified: true } }),
+      this.prisma.user.update({ where: { id: user.id }, data: { status: 'ACTIVE' } }),
+    ]);
+
+    await this.audit.record('MOBILE_VERIFIED', { userId: user.id, ip: ctx.ip });
     await this.audit.record('LOGIN_SUCCESS', { userId: user.id, ip: ctx.ip, userAgent: ctx.userAgent });
     return this.issueTokens(updated, ctx);
   }
