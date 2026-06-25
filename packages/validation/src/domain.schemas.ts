@@ -479,3 +479,41 @@ export const DispatchInputSchema = z.object({
 });
 export type StaffRequestInputData = z.infer<typeof StaffRequestInputSchema>;
 export type DispatchInputData = z.infer<typeof DispatchInputSchema>;
+
+// --- HR: leave, reviews, onboarding, warnings ------------------------------
+export const LeaveInputSchema = z.object({
+  personName: z.string().trim().min(1, 'Staff name is required').max(120),
+  type: z.enum(['ANNUAL', 'SICK', 'UNPAID', 'OTHER']).optional(),
+  startDate: z.string().trim().min(1, 'Start date is required'),
+  endDate: z.string().trim().min(1, 'End date is required'),
+  reason: optionalText(500),
+});
+export const LeaveDecisionSchema = z.object({ status: z.enum(['APPROVED', 'DECLINED', 'CANCELLED']) });
+export const PerformanceReviewInputSchema = z.object({
+  personName: z.string().trim().min(1, 'Staff name is required').max(120),
+  rating: z.coerce.number().int().min(1).max(5),
+  comments: optionalText(1000),
+  period: optionalText(60),
+});
+export const OnboardingInputSchema = z.object({
+  personName: z.string().trim().min(1, 'Person name is required').max(120),
+  kind: z.enum(['ONBOARDING', 'OFFBOARDING']).optional(),
+  step: optionalText(120),
+});
+export const OnboardingStatusSchema = z.object({
+  status: z.enum(['NOT_STARTED', 'IN_PROGRESS', 'COMPLETE']),
+});
+export const WarningInputSchema = z.object({
+  personName: z.string().trim().min(1, 'Staff name is required').max(120),
+  kind: z.enum(['WARNING', 'INCIDENT']).optional(),
+  severity: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+  summary: z.string().trim().min(1, 'Summary is required').max(300),
+  details: optionalText(1000),
+  occurredAt: optionalText(20),
+});
+export type LeaveInputData = z.infer<typeof LeaveInputSchema>;
+export type LeaveDecisionData = z.infer<typeof LeaveDecisionSchema>;
+export type PerformanceReviewInputData = z.infer<typeof PerformanceReviewInputSchema>;
+export type OnboardingInputData = z.infer<typeof OnboardingInputSchema>;
+export type OnboardingStatusData = z.infer<typeof OnboardingStatusSchema>;
+export type WarningInputData = z.infer<typeof WarningInputSchema>;

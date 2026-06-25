@@ -12,6 +12,7 @@ import { RostersSection } from './RostersSection';
 import { UrgentBulkSection } from './UrgentBulkSection';
 import { StaffRequestFormSection } from './StaffRequestFormSection';
 import { QuickDispatchSection } from './QuickDispatchSection';
+import { HrSection } from './HrSection';
 import { ComingSoonSection } from './ComingSoonSection';
 
 /**
@@ -41,6 +42,8 @@ export function DashboardSection({ slug }: { slug: string }) {
       return <StaffRequestFormSection />;
     case 'dispatch':
       return <QuickDispatchSection />;
+    case 'hr':
+      return <HrSection />;
     case 'operations':
       return <WorkforceSection />;
     case 'support':

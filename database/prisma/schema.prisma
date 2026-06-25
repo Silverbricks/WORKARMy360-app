@@ -1295,3 +1295,100 @@ model DispatchTarget {
   @@index([dispatchId])
   @@map("dispatch_targets")
 }
+
+// ===========================================================================
+//  BUSINESS DASHBOARD — HR (leave, reviews, onboarding, warnings)
+//  Leaf tables: plain org_id scalar (no relation) — workers stored by name.
+// ===========================================================================
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  UNPAID
+  OTHER
+}
+
+enum LeaveStatus {
+  REQUESTED
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+enum OnboardingKind {
+  ONBOARDING
+  OFFBOARDING
+}
+
+enum OnboardingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETE
+}
+
+enum WarningKind {
+  WARNING
+  INCIDENT
+}
+
+enum WarningSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model LeaveRequest {
+  id         String      @id @default(uuid()) @db.Uuid
+  orgId      String      @map("org_id") @db.Uuid
+  personName String      @map("person_name")
+  type       LeaveType   @default(ANNUAL)
+  startDate  String      @map("start_date")
+  endDate    String      @map("end_date")
+  reason     String?
+  status     LeaveStatus @default(REQUESTED)
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("leave_requests")
+}
+
+model PerformanceReview {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @map("org_id") @db.Uuid
+  personName String   @map("person_name")
+  rating     Int      @default(5)
+  comments   String?
+  period     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("performance_reviews")
+}
+
+model OnboardingCase {
+  id         String           @id @default(uuid()) @db.Uuid
+  orgId      String           @map("org_id") @db.Uuid
+  personName String           @map("person_name")
+  kind       OnboardingKind   @default(ONBOARDING)
+  step       String?
+  status     OnboardingStatus @default(IN_PROGRESS)
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("onboarding_cases")
+}
+
+model Warning {
+  id         String          @id @default(uuid()) @db.Uuid
+  orgId      String          @map("org_id") @db.Uuid
+  personName String          @map("person_name")
+  kind       WarningKind     @default(WARNING)
+  severity   WarningSeverity @default(LOW)
+  summary    String
+  details    String?
+  occurredAt String?         @map("occurred_at")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("warnings")
+}
