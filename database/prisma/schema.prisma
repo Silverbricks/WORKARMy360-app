@@ -1522,3 +1522,98 @@ model QuoteRequest {
   @@index([orgId])
   @@map("quote_requests")
 }
+
+// ===========================================================================
+//  BUSINESS DASHBOARD — Accounts (pay runs, business docs, piece rates)
+// ===========================================================================
+
+enum PayRunStatus {
+  DRAFT
+  FINALISED
+  PAID
+}
+
+enum BusinessDocType {
+  INVOICE
+  QUOTE
+  PROPOSAL
+}
+
+enum BusinessDocStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  PAID
+  DECLINED
+  VOID
+}
+
+model PayRun {
+  id           String       @id @default(uuid()) @db.Uuid
+  orgId        String       @map("org_id") @db.Uuid
+  periodStart  String       @map("period_start")
+  periodEnd    String       @map("period_end")
+  status       PayRunStatus @default(DRAFT)
+  grossPay     Int          @default(0) @map("gross_pay") // dollars (matches Payslip)
+  payg         Int          @default(0)
+  superAmount  Int          @default(0) @map("super_amount")
+  netPay       Int          @default(0) @map("net_pay")
+  workers      Int          @default(0)
+  abaGenerated Boolean      @default(false) @map("aba_generated")
+  stpLodged    Boolean      @default(false) @map("stp_lodged")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("pay_runs")
+}
+
+model BusinessDoc {
+  id            String            @id @default(uuid()) @db.Uuid
+  orgId         String            @map("org_id") @db.Uuid
+  type          BusinessDocType   @default(INVOICE)
+  number        String
+  clientName    String            @map("client_name")
+  clientAbn     String?           @map("client_abn")
+  date          String
+  gst           Boolean           @default(true)
+  notes         String?
+  status        BusinessDocStatus @default(DRAFT)
+  subtotalCents Int               @default(0) @map("subtotal_cents")
+  gstCents      Int               @default(0) @map("gst_cents")
+  totalCents    Int               @default(0) @map("total_cents")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  lines BusinessDocLine[]
+
+  @@unique([orgId, type, number])
+  @@index([orgId])
+  @@map("business_docs")
+}
+
+model BusinessDocLine {
+  id             String @id @default(uuid()) @db.Uuid
+  docId          String @map("doc_id") @db.Uuid
+  description    String
+  qty            Int    @default(1)
+  rateCents      Int    @default(0) @map("rate_cents")
+  lineTotalCents Int    @default(0) @map("line_total_cents")
+
+  doc BusinessDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+
+  @@index([docId])
+  @@map("business_doc_lines")
+}
+
+model PieceRate {
+  id           String   @id @default(uuid()) @db.Uuid
+  orgId        String   @map("org_id") @db.Uuid
+  name         String
+  unitLabel    String   @map("unit_label")
+  rateCents    Int      @map("rate_cents")
+  minWageCents Int?     @map("min_wage_cents")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("piece_rates")
+}

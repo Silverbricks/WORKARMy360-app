@@ -21,4 +21,5 @@ export * from './staffing';
 export * from './hr';
 export * from './operations';
 export * from './network';
+export * from './accounts';
 export * from './admin';

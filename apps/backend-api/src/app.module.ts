@@ -28,6 +28,7 @@ import { StaffingModule } from './modules/staffing/staffing.module';
 import { HrModule } from './modules/hr/hr.module';
 import { OperationsModule } from './modules/operations/operations.module';
 import { NetworkModule } from './modules/network/network.module';
+import { AccountsModule } from './modules/accounts/accounts.module';
 import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
@@ -59,6 +60,7 @@ import { AdminModule } from './modules/admin/admin.module';
     HrModule,
     OperationsModule,
     NetworkModule,
+    AccountsModule,
     AdminModule,
   ],
   providers: [

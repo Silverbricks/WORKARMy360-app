@@ -15,6 +15,7 @@ import { QuickDispatchSection } from './QuickDispatchSection';
 import { HrSection } from './HrSection';
 import { TasksSection, QrSection, SitesSection, VisitorsSection } from './OperationsSections';
 import { NetworkSection, ReportsSection } from './NetworkSections';
+import { PayRunsSection, BusinessDocsSection, PieceRatesSection } from './AccountsSections';
 import { ComingSoonSection } from './ComingSoonSection';
 
 /**
@@ -58,6 +59,12 @@ export function DashboardSection({ slug }: { slug: string }) {
       return <NetworkSection />;
     case 'reports':
       return <ReportsSection />;
+    case 'pay-runs':
+      return <PayRunsSection />;
+    case 'accounts':
+      return <BusinessDocsSection />;
+    case 'piece-rates':
+      return <PieceRatesSection />;
     case 'operations':
       return <WorkforceSection />;
     case 'support':

@@ -570,3 +570,34 @@ export const QuoteRequestInputSchema = z.object({
 });
 export type ProviderEngagementInputData = z.infer<typeof ProviderEngagementInputSchema>;
 export type QuoteRequestInputData = z.infer<typeof QuoteRequestInputSchema>;
+
+// --- Accounts: pay runs, business docs, piece rates ------------------------
+export const PayRunInputSchema = z.object({
+  periodStart: z.string().trim().min(1, 'Start date is required'),
+  periodEnd: z.string().trim().min(1, 'End date is required'),
+});
+export const BusinessDocLineInputSchema = z.object({
+  description: z.string().trim().min(1, 'Description is required').max(300),
+  qty: z.coerce.number().int().positive().max(99999),
+  rate: z.coerce.number().nonnegative(),
+});
+export const BusinessDocInputSchema = z.object({
+  type: z.enum(['INVOICE', 'QUOTE', 'PROPOSAL']).optional(),
+  number: optionalText(40),
+  clientName: z.string().trim().min(1, 'Client is required').max(160),
+  clientAbn: optionalText(20),
+  date: optionalText(20),
+  gst: z.coerce.boolean().optional(),
+  notes: optionalText(1000),
+  lines: z.array(BusinessDocLineInputSchema).min(1, 'Add at least one line').max(50),
+});
+export const PieceRateInputSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(160),
+  unitLabel: z.string().trim().min(1, 'Unit is required').max(60),
+  rate: z.coerce.number().nonnegative(),
+  minWage: z.coerce.number().nonnegative().optional(),
+});
+export type PayRunInputData = z.infer<typeof PayRunInputSchema>;
+export type BusinessDocLineInputData = z.infer<typeof BusinessDocLineInputSchema>;
+export type BusinessDocInputData = z.infer<typeof BusinessDocInputSchema>;
+export type PieceRateInputData = z.infer<typeof PieceRateInputSchema>;
