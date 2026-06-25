@@ -517,3 +517,40 @@ export type PerformanceReviewInputData = z.infer<typeof PerformanceReviewInputSc
 export type OnboardingInputData = z.infer<typeof OnboardingInputSchema>;
 export type OnboardingStatusData = z.infer<typeof OnboardingStatusSchema>;
 export type WarningInputData = z.infer<typeof WarningInputSchema>;
+
+// --- Operations: sites, tasks, QR, visitors --------------------------------
+export const SiteInputSchema = z.object({
+  name: z.string().trim().min(1, 'Site name is required').max(160),
+  addressLine: optionalText(200),
+  suburb: optionalText(80),
+  state: optionalText(40),
+  postcode: optionalText(10),
+});
+export const TaskInputSchema = z.object({
+  title: z.string().trim().min(1, 'Task is required').max(200),
+  description: optionalText(1000),
+  assigneeName: optionalText(120),
+  source: optionalText(40),
+  siteId: z.string().uuid().optional(),
+  dueAt: optionalText(20),
+});
+export const TaskStatusSchema = z.object({
+  status: z.enum(['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETE']),
+});
+export const QrInputSchema = z.object({
+  siteId: z.string().uuid().optional(),
+  siteName: optionalText(160),
+  leaderName: optionalText(120),
+});
+export const VisitorInputSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(120),
+  company: optionalText(120),
+  kind: z.enum(['VISITOR', 'CONTRACTOR', 'DELIVERY', 'STAFF', 'OTHER']).optional(),
+  siteName: optionalText(160),
+  host: optionalText(120),
+});
+export type SiteInputData = z.infer<typeof SiteInputSchema>;
+export type TaskInputData = z.infer<typeof TaskInputSchema>;
+export type TaskStatusData = z.infer<typeof TaskStatusSchema>;
+export type QrInputData = z.infer<typeof QrInputSchema>;
+export type VisitorInputData = z.infer<typeof VisitorInputSchema>;

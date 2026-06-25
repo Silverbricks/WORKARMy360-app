@@ -18,5 +18,6 @@ export * from './endpoints/dashboard';
 export * from './endpoints/staff';
 export * from './endpoints/staffing';
 export * from './endpoints/hr';
+export * from './endpoints/operations';
 export * from './endpoints/admin';
 export * from './client';

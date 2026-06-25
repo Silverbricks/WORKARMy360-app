@@ -1392,3 +1392,88 @@ model Warning {
   @@index([orgId])
   @@map("warnings")
 }
+
+// ===========================================================================
+//  BUSINESS DASHBOARD — Operations (sites, tasks, QR clock-in, visitors)
+// ===========================================================================
+
+enum TaskStatus {
+  ASSIGNED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETE
+}
+
+enum VisitorKind {
+  VISITOR
+  CONTRACTOR
+  DELIVERY
+  STAFF
+  OTHER
+}
+
+enum VisitorStatus {
+  ON_SITE
+  CHECKED_OUT
+}
+
+model Site {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  name        String
+  addressLine String?  @map("address_line")
+  suburb      String?
+  state       String?
+  postcode    String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("sites")
+}
+
+model Task {
+  id           String     @id @default(uuid()) @db.Uuid
+  orgId        String     @map("org_id") @db.Uuid
+  title        String
+  description  String?
+  assigneeName String?    @map("assignee_name")
+  source       String?
+  siteId       String?    @map("site_id") @db.Uuid
+  dueAt        String?    @map("due_at")
+  status       TaskStatus @default(ASSIGNED)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("tasks")
+}
+
+model SiteQrCode {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @map("org_id") @db.Uuid
+  siteId     String?  @map("site_id") @db.Uuid
+  siteName   String?  @map("site_name")
+  leaderName String?  @map("leader_name")
+  token      String   @unique
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("site_qr_codes")
+}
+
+model Visitor {
+  id         String        @id @default(uuid()) @db.Uuid
+  orgId      String        @map("org_id") @db.Uuid
+  name       String
+  company    String?
+  kind       VisitorKind   @default(VISITOR)
+  siteName   String?       @map("site_name")
+  host       String?
+  checkInAt  DateTime      @default(now()) @map("check_in_at")
+  checkOutAt DateTime?     @map("check_out_at")
+  status     VisitorStatus @default(ON_SITE)
+
+  @@index([orgId])
+  @@map("visitors")
+}

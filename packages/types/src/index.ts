@@ -19,4 +19,5 @@ export * from './service';
 export * from './staff';
 export * from './staffing';
 export * from './hr';
+export * from './operations';
 export * from './admin';

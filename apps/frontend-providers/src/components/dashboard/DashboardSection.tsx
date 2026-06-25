@@ -13,6 +13,7 @@ import { UrgentBulkSection } from './UrgentBulkSection';
 import { StaffRequestFormSection } from './StaffRequestFormSection';
 import { QuickDispatchSection } from './QuickDispatchSection';
 import { HrSection } from './HrSection';
+import { TasksSection, QrSection, SitesSection, VisitorsSection } from './OperationsSections';
 import { ComingSoonSection } from './ComingSoonSection';
 
 /**
@@ -44,6 +45,14 @@ export function DashboardSection({ slug }: { slug: string }) {
       return <QuickDispatchSection />;
     case 'hr':
       return <HrSection />;
+    case 'tasks':
+      return <TasksSection />;
+    case 'qr':
+      return <QrSection />;
+    case 'sites':
+      return <SitesSection />;
+    case 'visitors':
+      return <VisitorsSection />;
     case 'operations':
       return <WorkforceSection />;
     case 'support':
