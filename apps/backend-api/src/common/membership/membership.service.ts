@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { AdminRole } from '@workarmy/database';
+import type { AdminRole, VerificationStatus } from '@workarmy/database';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ApiException } from '../errors/api-exception';
 
@@ -8,6 +8,7 @@ export interface UserContext {
   personId: string | null;
   orgId: string | null;
   orgRole: string | null;
+  orgVerificationStatus: VerificationStatus | null;
   adminRole: AdminRole | null;
 }
 
@@ -19,7 +20,16 @@ export class MembershipService {
   async getContext(userId: string): Promise<UserContext> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: { person: { include: { orgMemberships: { take: 1 } } } },
+      include: {
+        person: {
+          include: {
+            orgMemberships: {
+              take: 1,
+              include: { organisation: { select: { verificationStatus: true } } },
+            },
+          },
+        },
+      },
     });
     if (!user) throw ApiException.unauthorized();
     const membership = user.person?.orgMemberships[0];
@@ -28,6 +38,7 @@ export class MembershipService {
       personId: user.person?.id ?? null,
       orgId: membership?.orgId ?? null,
       orgRole: membership?.role ?? null,
+      orgVerificationStatus: membership?.organisation.verificationStatus ?? null,
       adminRole: user.adminRole ?? null,
     };
   }
@@ -41,10 +52,40 @@ export class MembershipService {
     return { orgId: ctx.orgId, personId: ctx.personId };
   }
 
+  /**
+   * The current user's org, requiring it be verified (APPROVED). Gates posting
+   * jobs / hiring / staff requests. 400 if the org is still pending/rejected.
+   */
+  async requireVerifiedOrg(userId: string): Promise<{ orgId: string; personId: string }> {
+    const ctx = await this.getContext(userId);
+    if (!ctx.orgId || !ctx.personId) {
+      throw ApiException.unauthorized('This action requires a provider organisation.');
+    }
+    if (ctx.orgVerificationStatus !== 'APPROVED') {
+      throw ApiException.badRequest(
+        'VALIDATION_ERROR',
+        'Your business needs to be verified before you can do this. We’ll review it shortly.',
+      );
+    }
+    return { orgId: ctx.orgId, personId: ctx.personId };
+  }
+
   /** The current user's person id, or 401. */
   async requirePerson(userId: string): Promise<string> {
     const ctx = await this.getContext(userId);
     if (!ctx.personId) throw ApiException.unauthorized();
     return ctx.personId;
+  }
+
+  /** Require the user's org role be one of `roles` (e.g. owner/admin). */
+  async requireOrgRole(userId: string, roles: string[]): Promise<{ orgId: string; personId: string }> {
+    const ctx = await this.getContext(userId);
+    if (!ctx.orgId || !ctx.personId) {
+      throw ApiException.unauthorized('This action requires a provider organisation.');
+    }
+    if (!ctx.orgRole || !roles.includes(ctx.orgRole)) {
+      throw ApiException.unauthorized('You don’t have permission for this action.');
+    }
+    return { orgId: ctx.orgId, personId: ctx.personId };
   }
 }

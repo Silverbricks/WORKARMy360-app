@@ -34,6 +34,10 @@ const EnvSchema = z.object({
   TURNSTILE_ENABLED: boolFromString.default('false'),
   TURNSTILE_SECRET: z.string().optional(),
 
+  // When true, new provider orgs start PENDING and must be admin-approved before
+  // they can post jobs / hire. Off by default → orgs are auto-approved on creation.
+  ORG_VERIFICATION_REQUIRED: boolFromString.default('false'),
+
   API_PORT: z.coerce.number().int().positive().default(4000),
   API_GLOBAL_PREFIX: z.string().default('api/v1'),
   CORS_ORIGINS: z

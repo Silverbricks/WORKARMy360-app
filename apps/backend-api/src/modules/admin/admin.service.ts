@@ -121,12 +121,22 @@ export class AdminService {
     status: 'APPROVED' | 'REJECTED',
     note?: string,
   ): Promise<OkResponse> {
-    const existing = await this.prisma.verification.findUnique({ where: { id }, select: { id: true } });
+    const existing = await this.prisma.verification.findUnique({
+      where: { id },
+      select: { id: true, subjectOrgId: true },
+    });
     if (!existing) throw ApiException.notFound('Verification not found.');
     await this.prisma.verification.update({
       where: { id },
       data: { status, reviewedByUserId: userId, reviewNote: note ?? null, reviewedAt: new Date() },
     });
+    // Propagate an org-subject decision to the org's verification gate.
+    if (existing.subjectOrgId) {
+      await this.prisma.organisation.update({
+        where: { id: existing.subjectOrgId },
+        data: { verificationStatus: status, verifiedAt: status === 'APPROVED' ? new Date() : null },
+      });
+    }
     await this.audit.record(status === 'APPROVED' ? 'ORG_VERIFIED' : 'ORG_REJECTED', {
       userId,
       metadata: { verificationId: id },

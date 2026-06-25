@@ -49,6 +49,7 @@ export class UsersService {
             accountType: membership.organisation.accountType,
             name: membership.organisation.name,
             role: membership.role as OrgRole,
+            verificationStatus: membership.organisation.verificationStatus,
           }
         : null,
     };

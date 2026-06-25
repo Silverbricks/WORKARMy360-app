@@ -121,14 +121,17 @@ export class AuthService {
       let createdOrg = null;
       if (isProvider) {
         const orgWaId = await allocateWaId(tx);
+        const orgApproved = !env.ORG_VERIFICATION_REQUIRED;
         createdOrg = await tx.organisation.create({
           data: {
             waId: orgWaId,
             accountType: dto.accountType,
             name: dto.companyName ?? `${dto.firstName} ${dto.lastName}`,
+            verificationStatus: orgApproved ? 'APPROVED' : 'PENDING',
+            verifiedAt: orgApproved ? new Date() : null,
             members: { create: { personId: createdPerson.id, role: 'owner' } },
             profile: { create: {} },
-            verifications: { create: { status: 'PENDING' } },
+            verifications: { create: { status: orgApproved ? 'APPROVED' : 'PENDING' } },
           },
         });
       }

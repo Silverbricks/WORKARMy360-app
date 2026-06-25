@@ -379,6 +379,10 @@ model Organisation {
   waId        String      @unique @map("wa_id")
   accountType AccountType @map("account_type") // EMPLOYER / FARM / CONTRACTOR / ...
   name        String
+  // Provider verification gate — APPROVED unlocks posting jobs / hiring / staff
+  // requests. Set on creation (ORG_VERIFICATION_REQUIRED) and by admin review.
+  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  verifiedAt         DateTime?          @map("verified_at")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 

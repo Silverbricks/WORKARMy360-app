@@ -1,4 +1,5 @@
 import type { AccountType } from './account';
+import type { VerificationStatus } from './admin';
 
 export type AdminRole = 'SUPER_ADMIN' | 'SUB_ADMIN';
 export type OrgRole = 'owner' | 'admin' | 'member';
@@ -10,6 +11,7 @@ export interface OrgSummary {
   accountType: AccountType;
   name: string;
   role: OrgRole;
+  verificationStatus: VerificationStatus;
 }
 
 export interface OrgProfile {
@@ -77,6 +79,20 @@ export interface OrganisationDetail {
   waId: string;
   accountType: AccountType;
   name: string;
+  verificationStatus: VerificationStatus;
+  verifiedAt: string | null;
   profile: OrgProfile | null;
   contacts: Contact[];
+}
+
+/** Aggregated counts for the Business dashboard overview. */
+export interface DashboardSummary {
+  verificationStatus: VerificationStatus;
+  profileCompleteness: number;
+  openRoles: number;
+  draftJobs: number;
+  activeWorkers: number;
+  newApplicants: number;
+  pendingTimesheets: number;
+  expiringCredentials: number;
 }

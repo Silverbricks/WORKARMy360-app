@@ -42,6 +42,8 @@ export class OrganisationsService {
       waId: org.waId,
       accountType: org.accountType,
       name: org.name,
+      verificationStatus: org.verificationStatus,
+      verifiedAt: org.verifiedAt ? org.verifiedAt.toISOString() : null,
       profile: org.profile ? toProfile(org.profile) : null,
       contacts: org.contacts.map(toContact),
     };

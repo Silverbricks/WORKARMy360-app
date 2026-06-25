@@ -14,5 +14,6 @@ export * from './endpoints/services';
 export * from './endpoints/organisations';
 export * from './endpoints/jobs';
 export * from './endpoints/applications';
+export * from './endpoints/dashboard';
 export * from './endpoints/admin';
 export * from './client';

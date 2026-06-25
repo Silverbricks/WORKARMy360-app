@@ -36,7 +36,8 @@ export class JobsService {
   }
 
   async publish(userId: string, id: string): Promise<Job> {
-    const { orgId } = await this.membership.requireOrg(userId);
+    // Posting jobs requires a verified business (Gate).
+    const { orgId } = await this.membership.requireVerifiedOrg(userId);
     await this.ensureOwned(id, orgId);
     const job = await this.prisma.job.update({
       where: { id },

@@ -22,6 +22,7 @@ import { ServicesModule } from './modules/services/services.module';
 import { OrganisationsModule } from './modules/organisations/organisations.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ApplicationsModule } from './modules/applications/applications.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
@@ -47,6 +48,7 @@ import { AdminModule } from './modules/admin/admin.module';
     OrganisationsModule,
     JobsModule,
     ApplicationsModule,
+    DashboardModule,
     AdminModule,
   ],
   providers: [

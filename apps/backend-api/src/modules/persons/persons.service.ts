@@ -23,6 +23,7 @@ import type {
 import { PrismaService } from '../../prisma/prisma.service';
 import { MembershipService } from '../../common/membership/membership.service';
 import { ApiException } from '../../common/errors/api-exception';
+import { env } from '../../config/env';
 
 /** Fields that count toward profile completeness (a UX metric, not compliance). */
 const COMPLETENESS_FIELDS = [
@@ -80,6 +81,7 @@ export class PersonsService {
       throw ApiException.badRequest('VALIDATION_ERROR', 'You already have a provider organisation.');
     }
     const personId = ctx.personId;
+    const approved = !env.ORG_VERIFICATION_REQUIRED;
     const org = await this.prisma.$transaction(async (tx) => {
       const waId = await allocateWaId(tx);
       return tx.organisation.create({
@@ -87,13 +89,22 @@ export class PersonsService {
           waId,
           accountType: input.accountType,
           name: input.companyName,
+          verificationStatus: approved ? 'APPROVED' : 'PENDING',
+          verifiedAt: approved ? new Date() : null,
           members: { create: { personId, role: 'owner' } },
           profile: { create: {} },
-          verifications: { create: { status: 'PENDING' } },
+          verifications: { create: { status: approved ? 'APPROVED' : 'PENDING' } },
         },
       });
     });
-    return { id: org.id, waId: org.waId, accountType: org.accountType, name: org.name, role: 'owner' };
+    return {
+      id: org.id,
+      waId: org.waId,
+      accountType: org.accountType,
+      name: org.name,
+      role: 'owner',
+      verificationStatus: org.verificationStatus,
+    };
   }
 
   async employers(userId: string): Promise<EmployerSummary[]> {
