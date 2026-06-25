@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { t, type LabelKey } from '@workarmy/ui';
 import { PROVIDERS_URL } from '@/lib/api';
@@ -23,40 +22,6 @@ const links: NavLink[] = [
 const linkClass = 'rounded-md px-3 py-2 text-[#CBD5E1] transition hover:bg-white/5 hover:text-white';
 
 export function PublicNav() {
-  // Detect the non-httpOnly auth hint cookie (set on login). Default to the
-  // logged-out nav for SSR, then swap after mount to avoid hydration mismatch.
-  const [authed, setAuthed] = useState(false);
-  useEffect(() => {
-    setAuthed(typeof document !== 'undefined' && document.cookie.includes('wa_auth='));
-  }, []);
-
-  if (authed) {
-    return (
-      <nav className="flex items-center gap-1 text-sm">
-        <div className="hidden items-center gap-1 lg:flex">
-          {links.map((link) =>
-            link.external ? (
-              <a key={link.key} href={link.href} className={linkClass}>
-                {t(link.key)}
-              </a>
-            ) : (
-              <Link key={link.key} href={link.href} className={linkClass}>
-                {t(link.key)}
-              </Link>
-            ),
-          )}
-        </div>
-        <Link
-          href="/dashboard"
-          className="rounded-lg px-3 py-2 font-medium text-white transition hover:brightness-95"
-          style={{ backgroundColor: 'var(--accent)' }}
-        >
-          Dashboard
-        </Link>
-      </nav>
-    );
-  }
-
   return (
     <nav className="flex items-center gap-1 text-sm">
       <div className="hidden items-center gap-1 lg:flex">
@@ -75,13 +40,17 @@ export function PublicNav() {
       <Link href="/login" className={linkClass}>
         {t('nav.login')}
       </Link>
-      <Link
-        href="/register"
+      <Link href="/register" className={linkClass}>
+        {t('nav.register')}
+      </Link>
+      {/* Employer CTA — sign up on the Providers app to post a job. */}
+      <a
+        href={`${PROVIDERS_URL}/register`}
         className="rounded-lg px-3 py-2 font-medium text-white transition hover:brightness-95"
         style={{ backgroundColor: 'var(--accent)' }}
       >
-        {t('nav.register')}
-      </Link>
+        Post a job free
+      </a>
     </nav>
   );
 }
