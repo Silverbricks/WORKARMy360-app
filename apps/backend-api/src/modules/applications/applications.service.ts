@@ -101,7 +101,11 @@ export class ApplicationsService {
   }
 
   async changeStage(userId: string, id: string, input: StageChangeInput): Promise<JobApplication> {
-    const { orgId } = await this.membership.requireOrg(userId);
+    // Hiring requires a verified business; other pipeline moves don't.
+    const { orgId } =
+      input.toStage === 'HIRED'
+        ? await this.membership.requireVerifiedOrg(userId)
+        : await this.membership.requireOrg(userId);
     const app = await this.prisma.jobApplication.findUnique({
       where: { id },
       include: { job: { select: { orgId: true, title: true } }, person: { select: { userId: true } } },

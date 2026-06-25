@@ -468,6 +468,8 @@ model Job {
   payMax         Int?      @map("pay_max")
   payUnit        String?   @map("pay_unit") // hour / day / week / year
   positions      Int       @default(1)
+  urgent         Boolean   @default(false) // urgent shift / call-out flag
+  shareToggles   Json?     @map("share_toggles") // { inApp, social, onSite, topPriority }
   startDate      DateTime? @map("start_date")
   publishedAt    DateTime? @map("published_at")
   closedAt       DateTime? @map("closed_at")

@@ -1,7 +1,7 @@
 'use client';
 
 import { OrgProfileSection } from './OrgProfileSection';
-import { JobsSection } from './JobsSection';
+import { HiringSection } from './HiringSection';
 import { WorkforceSection } from './WorkforceSection';
 import { MessagesSection } from './MessagesSection';
 import { ComingSoonSection } from './ComingSoonSection';
@@ -16,7 +16,7 @@ export function DashboardSection({ slug }: { slug: string }) {
     case 'profile':
       return <OrgProfileSection />;
     case 'jobs':
-      return <JobsSection title="Jobs & Shifts" />;
+      return <HiringSection />;
     case 'workforce':
       return <WorkforceSection />;
     case 'support':

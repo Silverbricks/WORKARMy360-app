@@ -1,5 +1,13 @@
 export type JobStatus = 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'ARCHIVED';
 
+/** Where a posted job/shift is broadcast. */
+export interface JobShareToggles {
+  inApp?: boolean;
+  social?: boolean;
+  onSite?: boolean;
+  topPriority?: boolean;
+}
+
 export interface Job {
   id: string;
   orgId: string;
@@ -15,6 +23,8 @@ export interface Job {
   payMax: number | null;
   payUnit: string | null;
   positions: number;
+  urgent: boolean;
+  shareToggles: JobShareToggles | null;
   startDate: string | null;
   publishedAt: string | null;
   closedAt: string | null;
@@ -42,6 +52,8 @@ export interface JobInput {
   payMax?: number;
   payUnit?: string;
   positions?: number;
+  urgent?: boolean;
+  shareToggles?: JobShareToggles;
   startDate?: string;
 }
 

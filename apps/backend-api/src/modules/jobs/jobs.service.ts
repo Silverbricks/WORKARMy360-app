@@ -182,6 +182,8 @@ function toData(input: JobInputData) {
     payMax: input.payMax ?? null,
     payUnit: input.payUnit ?? null,
     positions: input.positions ?? 1,
+    urgent: input.urgent ?? false,
+    shareToggles: input.shareToggles ?? undefined,
     startDate: input.startDate ? new Date(input.startDate) : null,
   };
 }
@@ -202,6 +204,8 @@ function toJob(j: DbJob): Job {
     payMax: j.payMax,
     payUnit: j.payUnit,
     positions: j.positions,
+    urgent: j.urgent,
+    shareToggles: (j.shareToggles as Job['shareToggles']) ?? null,
     startDate: iso(j.startDate),
     publishedAt: iso(j.publishedAt),
     closedAt: iso(j.closedAt),

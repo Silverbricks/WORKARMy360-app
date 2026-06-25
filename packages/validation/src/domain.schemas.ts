@@ -297,6 +297,16 @@ export const JobInputSchema = z.object({
   payMax: z.coerce.number().int().nonnegative().optional(),
   payUnit: optionalText(20),
   positions: z.coerce.number().int().positive().max(9999).optional(),
+  urgent: z.coerce.boolean().optional(),
+  shareToggles: z
+    .object({
+      inApp: z.boolean(),
+      social: z.boolean(),
+      onSite: z.boolean(),
+      topPriority: z.boolean(),
+    })
+    .partial()
+    .optional(),
   startDate: z.string().datetime().optional().or(z.literal('')),
 });
 
