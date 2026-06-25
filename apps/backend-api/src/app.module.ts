@@ -24,6 +24,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { ApplicationsModule } from './modules/applications/applications.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { StaffModule } from './modules/staff/staff.module';
+import { StaffingModule } from './modules/staffing/staffing.module';
 import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
@@ -51,6 +52,7 @@ import { AdminModule } from './modules/admin/admin.module';
     ApplicationsModule,
     DashboardModule,
     StaffModule,
+    StaffingModule,
     AdminModule,
   ],
   providers: [

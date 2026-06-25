@@ -403,6 +403,8 @@ model Organisation {
   conversations Conversation[]
   orgWorkers    OrgWorker[]
   teams         Team[]
+  staffRequests StaffRequest[]
+  dispatches    Dispatch[]
 
   @@map("organisations")
 }
@@ -1132,4 +1134,164 @@ model TeamMember {
 
   @@unique([teamId, personId])
   @@map("team_members")
+}
+
+// ===========================================================================
+//  BUSINESS DASHBOARD — Urgent & Bulk (staff requests, quick dispatch)
+// ===========================================================================
+
+enum StaffRequestType {
+  URGENT_SHIFT
+  BULK_CREW
+  STANDARD
+}
+
+enum StaffRequestUrgency {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum StaffRequestStatus {
+  DRAFT
+  SENT
+  ACKNOWLEDGED
+  FILLED
+  CLOSED
+  CANCELLED
+}
+
+enum RecipientChannel {
+  SUPER_ADMIN
+  CONTRACTOR
+  AGENCY
+  NETWORK
+}
+
+enum RecipientStatus {
+  SENT
+  VIEWED
+  ACCEPTED
+  DECLINED
+}
+
+enum DispatchChannel {
+  ON_CALL
+  CONTRACTORS
+  AGENCIES
+  NETWORK
+}
+
+enum DispatchStatus {
+  OPEN
+  FILLED
+  CLOSED
+}
+
+enum DispatchTargetState {
+  SENT
+  RESPONDED
+  ACCEPTED
+  DECLINED
+}
+
+/// A structured bulk/urgent staff request sent to WorkArmy Super Admin and
+/// optionally selected contractors/agencies.
+model StaffRequest {
+  id              String              @id @default(uuid()) @db.Uuid
+  orgId           String              @map("org_id") @db.Uuid
+  type            StaffRequestType    @default(BULK_CREW)
+  urgency         StaffRequestUrgency @default(NORMAL)
+  status          StaffRequestStatus  @default(SENT)
+  roleTitle       String              @map("role_title")
+  industry        String?
+  description     String?
+  employmentType  String?             @map("employment_type")
+  site            String?
+  siteAddress     String?             @map("site_address")
+  suburb          String?
+  state           String?
+  startDate       String?             @map("start_date") // ISO date
+  shiftType       String?             @map("shift_type")
+  startTime       String?             @map("start_time")
+  finishTime      String?             @map("finish_time")
+  headcountTotal  Int                 @default(1) @map("headcount_total")
+  headcountMale   Int?                @map("headcount_male")
+  headcountFemale Int?                @map("headcount_female")
+  headcountAny    Int?                @map("headcount_any")
+  days            String? // csv
+  skills          String? // csv
+  licences        String? // csv
+  experience      String?
+  english         String?
+  ppe             String? // csv
+  ppeSupplied     Boolean             @default(false) @map("ppe_supplied")
+  reportToName    String?             @map("report_to_name")
+  reportToRole    String?             @map("report_to_role")
+  reportToMobile  String?             @map("report_to_mobile")
+  reportToLocation String?            @map("report_to_location")
+  siteNotes       String?             @map("site_notes")
+  payRate         String?             @map("pay_rate")
+  payBasis        String?             @map("pay_basis")
+  award           String?
+  transport       Boolean             @default(false)
+  accommodation   Boolean             @default(false)
+  meals           Boolean             @default(false)
+  additionalNotes String?             @map("additional_notes")
+  sendToSuperAdmin Boolean            @default(true) @map("send_to_super_admin")
+  declarationAcceptedAt DateTime?     @map("declaration_accepted_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  organisation Organisation            @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  recipients   StaffRequestRecipient[]
+
+  @@index([orgId])
+  @@map("staff_requests")
+}
+
+model StaffRequestRecipient {
+  id             String           @id @default(uuid()) @db.Uuid
+  staffRequestId String           @map("staff_request_id") @db.Uuid
+  channel        RecipientChannel
+  recipientOrgId String?          @map("recipient_org_id") @db.Uuid // soft link
+  recipientLabel String?          @map("recipient_label")
+  status         RecipientStatus  @default(SENT)
+  respondedAt    DateTime?        @map("responded_at")
+
+  staffRequest StaffRequest @relation(fields: [staffRequestId], references: [id], onDelete: Cascade)
+
+  @@index([staffRequestId])
+  @@map("staff_request_recipients")
+}
+
+model Dispatch {
+  id         String         @id @default(uuid()) @db.Uuid
+  orgId      String         @map("org_id") @db.Uuid
+  message    String
+  roleNeeded String?        @map("role_needed")
+  headcount  Int?
+  whenAt     String?        @map("when_at")
+  status     DispatchStatus @default(OPEN)
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  organisation Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  targets      DispatchTarget[]
+
+  @@index([orgId])
+  @@map("dispatches")
+}
+
+model DispatchTarget {
+  id          String              @id @default(uuid()) @db.Uuid
+  dispatchId  String              @map("dispatch_id") @db.Uuid
+  channel     DispatchChannel
+  targetLabel String?             @map("target_label")
+  state       DispatchTargetState @default(SENT)
+  respondedAt DateTime?           @map("responded_at")
+
+  dispatch Dispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+
+  @@index([dispatchId])
+  @@map("dispatch_targets")
 }

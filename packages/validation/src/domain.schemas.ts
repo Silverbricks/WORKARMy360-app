@@ -428,3 +428,54 @@ export type WorkerInviteData = z.infer<typeof WorkerInviteSchema>;
 export type RosterInputData = z.infer<typeof RosterInputSchema>;
 export type RosterAssignData = z.infer<typeof RosterAssignSchema>;
 export type RosterRespondData = z.infer<typeof RosterRespondSchema>;
+
+// --- staffing: staff requests + quick dispatch -----------------------------
+export const StaffRequestInputSchema = z.object({
+  type: z.enum(['URGENT_SHIFT', 'BULK_CREW', 'STANDARD']).optional(),
+  urgency: z.enum(['LOW', 'NORMAL', 'HIGH', 'CRITICAL']).optional(),
+  roleTitle: z.string().trim().min(1, 'Role / title is required').max(160),
+  industry: optionalText(80),
+  description: optionalText(2000),
+  employmentType: optionalText(40),
+  site: optionalText(160),
+  siteAddress: optionalText(200),
+  suburb: optionalText(80),
+  state: optionalText(40),
+  startDate: optionalText(20),
+  shiftType: optionalText(40),
+  startTime: optionalText(10),
+  finishTime: optionalText(10),
+  headcountTotal: z.coerce.number().int().positive().max(9999).optional(),
+  headcountMale: z.coerce.number().int().nonnegative().max(9999).optional(),
+  headcountFemale: z.coerce.number().int().nonnegative().max(9999).optional(),
+  headcountAny: z.coerce.number().int().nonnegative().max(9999).optional(),
+  days: optionalText(120),
+  skills: optionalText(500),
+  licences: optionalText(500),
+  experience: optionalText(60),
+  english: optionalText(40),
+  ppe: optionalText(500),
+  ppeSupplied: z.coerce.boolean().optional(),
+  reportToName: optionalText(120),
+  reportToRole: optionalText(60),
+  reportToMobile: optionalText(40),
+  reportToLocation: optionalText(80),
+  siteNotes: optionalText(1000),
+  payRate: optionalText(40),
+  payBasis: optionalText(40),
+  award: optionalText(120),
+  transport: z.coerce.boolean().optional(),
+  accommodation: z.coerce.boolean().optional(),
+  meals: z.coerce.boolean().optional(),
+  additionalNotes: optionalText(2000),
+  partnerLabels: z.array(z.string().trim().max(160)).max(50).optional(),
+});
+export const DispatchInputSchema = z.object({
+  message: z.string().trim().min(1, 'Message is required').max(1000),
+  roleNeeded: optionalText(160),
+  headcount: z.coerce.number().int().positive().max(9999).optional(),
+  whenAt: optionalText(40),
+  channels: z.array(z.enum(['ON_CALL', 'CONTRACTORS', 'AGENCIES', 'NETWORK'])).min(1, 'Pick a channel'),
+});
+export type StaffRequestInputData = z.infer<typeof StaffRequestInputSchema>;
+export type DispatchInputData = z.infer<typeof DispatchInputSchema>;
