@@ -16,4 +16,5 @@ export * from './invoice';
 export * from './community';
 export * from './support';
 export * from './service';
+export * from './staff';
 export * from './admin';

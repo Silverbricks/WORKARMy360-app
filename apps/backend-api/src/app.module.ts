@@ -23,6 +23,7 @@ import { OrganisationsModule } from './modules/organisations/organisations.modul
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ApplicationsModule } from './modules/applications/applications.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { StaffModule } from './modules/staff/staff.module';
 import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
@@ -49,6 +50,7 @@ import { AdminModule } from './modules/admin/admin.module';
     JobsModule,
     ApplicationsModule,
     DashboardModule,
+    StaffModule,
     AdminModule,
   ],
   providers: [

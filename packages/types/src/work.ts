@@ -2,6 +2,8 @@ export type ShiftStatus = 'OPEN' | 'FILLED' | 'COMPLETED' | 'CANCELLED';
 export type AssignmentStatus =
   | 'ASSIGNED'
   | 'CONFIRMED'
+  | 'ACCEPTED'
+  | 'DECLINED'
   | 'COMPLETED'
   | 'NO_SHOW'
   | 'SWAP_REQUESTED';

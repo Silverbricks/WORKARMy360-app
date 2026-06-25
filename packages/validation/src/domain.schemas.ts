@@ -373,3 +373,58 @@ export type JobBrowseQueryData = z.infer<typeof JobBrowseQuerySchema>;
 export type ApplyInputData = z.infer<typeof ApplyInputSchema>;
 export type StageChangeData = z.infer<typeof StageChangeSchema>;
 export type ReviewData = z.infer<typeof ReviewSchema>;
+
+// --- staff: org workers, teams, worker directory, rosters ------------------
+export const OrgWorkerInputSchema = z.object({
+  waId: z.string().trim().min(3, 'Worker ID is required').max(20),
+  staffType: optionalText(60),
+  onCall: z.coerce.boolean().optional(),
+  urgentAvailable: z.coerce.boolean().optional(),
+  availabilityNote: optionalText(300),
+});
+export const OrgWorkerUpdateSchema = z.object({
+  staffType: optionalText(60),
+  onCall: z.coerce.boolean().optional(),
+  urgentAvailable: z.coerce.boolean().optional(),
+  availabilityNote: optionalText(300),
+  teamId: z.string().uuid().nullish(),
+  active: z.coerce.boolean().optional(),
+});
+export const TeamInputSchema = z.object({
+  name: z.string().trim().min(1, 'Team name is required').max(120),
+  description: optionalText(500),
+  supervisorMemberId: z.string().uuid().optional(),
+});
+export const TeamMemberInputSchema = z.object({
+  waId: z.string().trim().min(3, 'Worker ID is required').max(20),
+  roleInTeam: optionalText(60),
+});
+export const WorkerDirectoryQuerySchema = z.object({
+  q: optionalText(120),
+  state: optionalText(40),
+  workType: optionalText(40),
+  urgent: z.coerce.boolean().optional(),
+});
+export const WorkerInviteSchema = z.object({ message: optionalText(500) });
+export const RosterInputSchema = z.object({
+  title: z.string().trim().min(1, 'Title is required').max(160),
+  date: z.string().trim().min(1, 'Date is required'),
+  start: z.string().trim().min(1, 'Start time is required'),
+  end: z.string().trim().min(1, 'End time is required'),
+  teamId: z.string().uuid().optional(),
+  waIds: z.array(z.string().trim().min(3).max(20)).max(100).optional(),
+});
+export const RosterAssignSchema = z.object({ waId: z.string().trim().min(3).max(20) });
+export const RosterRespondSchema = z.object({
+  response: z.enum(['ACCEPTED', 'DECLINED', 'CONFIRMED']),
+});
+
+export type OrgWorkerInputData = z.infer<typeof OrgWorkerInputSchema>;
+export type OrgWorkerUpdateData = z.infer<typeof OrgWorkerUpdateSchema>;
+export type TeamInputData = z.infer<typeof TeamInputSchema>;
+export type TeamMemberInputData = z.infer<typeof TeamMemberInputSchema>;
+export type WorkerDirectoryQueryData = z.infer<typeof WorkerDirectoryQuerySchema>;
+export type WorkerInviteData = z.infer<typeof WorkerInviteSchema>;
+export type RosterInputData = z.infer<typeof RosterInputSchema>;
+export type RosterAssignData = z.infer<typeof RosterAssignSchema>;
+export type RosterRespondData = z.infer<typeof RosterRespondSchema>;

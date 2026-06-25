@@ -4,6 +4,11 @@ import { OrgProfileSection } from './OrgProfileSection';
 import { HiringSection } from './HiringSection';
 import { WorkforceSection } from './WorkforceSection';
 import { MessagesSection } from './MessagesSection';
+import { FindStaffSection } from './FindStaffSection';
+import { StaffSection } from './StaffSection';
+import { MyWorkforceSection } from './MyWorkforceSection';
+import { TeamsSection } from './TeamsSection';
+import { RostersSection } from './RostersSection';
 import { ComingSoonSection } from './ComingSoonSection';
 
 /**
@@ -17,7 +22,17 @@ export function DashboardSection({ slug }: { slug: string }) {
       return <OrgProfileSection />;
     case 'jobs':
       return <HiringSection />;
+    case 'find-staff':
+      return <FindStaffSection />;
+    case 'staff':
+      return <StaffSection />;
     case 'workforce':
+      return <MyWorkforceSection />;
+    case 'teams':
+      return <TeamsSection />;
+    case 'rosters':
+      return <RostersSection />;
+    case 'operations':
       return <WorkforceSection />;
     case 'support':
       return <MessagesSection />;

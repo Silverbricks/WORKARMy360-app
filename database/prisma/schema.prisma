@@ -115,6 +115,8 @@ enum ShiftStatus {
 enum AssignmentStatus {
   ASSIGNED
   CONFIRMED
+  ACCEPTED
+  DECLINED
   COMPLETED
   NO_SHOW
   SWAP_REQUESTED
@@ -263,6 +265,8 @@ model Person {
   workLogs         WorkLog[]
   workReadiness    WorkReadiness?
   invoices         Invoice[]
+  orgWorkerLinks   OrgWorker[]
+  teamMemberships  TeamMember[]
 
   @@map("persons")
 }
@@ -397,6 +401,8 @@ model Organisation {
   timesheets    Timesheet[]
   payslips      Payslip[]
   conversations Conversation[]
+  orgWorkers    OrgWorker[]
+  teams         Team[]
 
   @@map("organisations")
 }
@@ -615,6 +621,9 @@ model Shift {
   positions    Int         @default(1)
   notes        String?
   status       ShiftStatus @default(OPEN)
+  isRoster     Boolean     @default(false) @map("is_roster") // rostered shift (vs open shift)
+  teamId       String?     @map("team_id") @db.Uuid // soft link to a Team
+  publishedAt  DateTime?   @map("published_at") // roster published & staff notified
   createdAt    DateTime    @default(now()) @map("created_at")
 
   organisation Organisation      @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -1066,4 +1075,61 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@map("audit_logs")
+}
+
+// ===========================================================================
+//  BUSINESS DASHBOARD — Staff (org workers, teams)
+// ===========================================================================
+
+/// A worker linked to an org's roster (on-call / urgent flags). Distinct from
+/// per-shift ShiftAssignment — this is the standing relationship.
+model OrgWorker {
+  id               String   @id @default(uuid()) @db.Uuid
+  orgId            String   @map("org_id") @db.Uuid
+  personId         String   @map("person_id") @db.Uuid
+  staffType        String?  @map("staff_type")
+  onCall           Boolean  @default(false) @map("on_call")
+  urgentAvailable  Boolean  @default(false) @map("urgent_available")
+  availabilityNote String?  @map("availability_note")
+  teamId           String?  @map("team_id") @db.Uuid
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  person       Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, personId])
+  @@index([orgId])
+  @@map("org_workers")
+}
+
+model Team {
+  id                 String   @id @default(uuid()) @db.Uuid
+  orgId              String   @map("org_id") @db.Uuid
+  name               String
+  description        String?
+  supervisorMemberId String?  @map("supervisor_member_id") @db.Uuid // soft link to OrgMember
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  members      TeamMember[]
+
+  @@index([orgId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id         String   @id @default(uuid()) @db.Uuid
+  teamId     String   @map("team_id") @db.Uuid
+  personId   String   @map("person_id") @db.Uuid
+  roleInTeam String?  @map("role_in_team")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, personId])
+  @@map("team_members")
 }

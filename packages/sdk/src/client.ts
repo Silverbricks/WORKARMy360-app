@@ -15,6 +15,7 @@ import { createOrganisationsClient } from './endpoints/organisations';
 import { createJobsClient } from './endpoints/jobs';
 import { createApplicationsClient } from './endpoints/applications';
 import { createDashboardClient } from './endpoints/dashboard';
+import { createStaffClient } from './endpoints/staff';
 import { createAdminClient } from './endpoints/admin';
 
 export type WorkArmyClientOptions = HttpClientOptions;
@@ -40,6 +41,7 @@ export function createClient(opts: WorkArmyClientOptions) {
     jobs: createJobsClient(http),
     applications: createApplicationsClient(http),
     dashboard: createDashboardClient(http),
+    staff: createStaffClient(http),
     admin: createAdminClient(http),
   };
 }
