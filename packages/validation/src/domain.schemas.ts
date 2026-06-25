@@ -554,3 +554,19 @@ export type TaskInputData = z.infer<typeof TaskInputSchema>;
 export type TaskStatusData = z.infer<typeof TaskStatusSchema>;
 export type QrInputData = z.infer<typeof QrInputSchema>;
 export type VisitorInputData = z.infer<typeof VisitorInputSchema>;
+
+// --- Network: provider engagements + quote requests ------------------------
+export const ProviderEngagementInputSchema = z.object({
+  providerName: z.string().trim().min(1, 'Name is required').max(160),
+  providerOrgId: z.string().uuid().optional(),
+  kind: optionalText(40),
+  category: optionalText(120),
+  location: optionalText(120),
+});
+export const QuoteRequestInputSchema = z.object({
+  toLabel: z.string().trim().min(1, 'Recipient is required').max(160),
+  scope: z.string().trim().min(1, 'Scope is required').max(300),
+  details: optionalText(1000),
+});
+export type ProviderEngagementInputData = z.infer<typeof ProviderEngagementInputSchema>;
+export type QuoteRequestInputData = z.infer<typeof QuoteRequestInputSchema>;

@@ -1477,3 +1477,48 @@ model Visitor {
   @@index([orgId])
   @@map("visitors")
 }
+
+// ===========================================================================
+//  BUSINESS DASHBOARD — Network (engaged providers/agencies, quote requests)
+// ===========================================================================
+
+enum EngagementStatus {
+  ENGAGED
+  ENDED
+}
+
+enum QuoteStatus {
+  REQUESTED
+  QUOTED
+  ACCEPTED
+  DECLINED
+}
+
+model ProviderEngagement {
+  id            String           @id @default(uuid()) @db.Uuid
+  orgId         String           @map("org_id") @db.Uuid // client org
+  providerOrgId String?          @map("provider_org_id") @db.Uuid // soft link if a WorkArmy org
+  providerName  String           @map("provider_name")
+  kind          String? // Provider / Contractor / Agency
+  category      String?
+  location      String?
+  status        EngagementStatus @default(ENGAGED)
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("provider_engagements")
+}
+
+model QuoteRequest {
+  id          String      @id @default(uuid()) @db.Uuid
+  orgId       String      @map("org_id") @db.Uuid
+  toLabel     String      @map("to_label")
+  scope       String
+  details     String?
+  amountCents Int?        @map("amount_cents")
+  status      QuoteStatus @default(REQUESTED)
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("quote_requests")
+}
