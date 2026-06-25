@@ -1,28 +1,27 @@
 'use client';
 
-import { Card } from '@workarmy/ui';
-import { getSection } from '@/lib/dashboard-sections';
-import { useMe } from './DashboardShell';
-import { SectionStub } from './SectionStub';
 import { OrgProfileSection } from './OrgProfileSection';
 import { JobsSection } from './JobsSection';
 import { WorkforceSection } from './WorkforceSection';
 import { MessagesSection } from './MessagesSection';
+import { ComingSoonSection } from './ComingSoonSection';
 
+/**
+ * Maps a `/dashboard/[section]` slug to its component. Phase 0 reuses the four
+ * existing real sections; everything else renders a temporary placeholder until
+ * its phase wires it up.
+ */
 export function DashboardSection({ slug }: { slug: string }) {
-  const me = useMe();
-  const section = getSection(me.organisation.accountType, slug);
-
-  if (!section) {
-    return (
-      <Card className="p-6 text-sm text-[#64748B]">
-        This section isn’t available for your account type.
-      </Card>
-    );
+  switch (slug) {
+    case 'profile':
+      return <OrgProfileSection />;
+    case 'jobs':
+      return <JobsSection title="Jobs & Shifts" />;
+    case 'workforce':
+      return <WorkforceSection />;
+    case 'support':
+      return <MessagesSection />;
+    default:
+      return <ComingSoonSection slug={slug} />;
   }
-  if (section.kind === 'profile') return <OrgProfileSection />;
-  if (section.kind === 'jobs') return <JobsSection title={section.title} />;
-  if (section.kind === 'shifts') return <WorkforceSection />;
-  if (section.kind === 'messages') return <MessagesSection />;
-  return <SectionStub section={section} />;
 }

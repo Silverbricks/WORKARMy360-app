@@ -1,10 +1,12 @@
+import { notFound } from 'next/navigation';
 import { DashboardSection } from '@/components/dashboard/DashboardSection';
-import { ALL_SECTION_SLUGS } from '@/lib/dashboard-sections';
+import { SECTION_SLUGS } from '@/lib/dashboard-nav';
 
+// Only the known sections are valid; anything else 404s. Fully static.
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return ALL_SECTION_SLUGS.map((section) => ({ section }));
+  return SECTION_SLUGS.map((section) => ({ section }));
 }
 
 export default async function DashboardSectionPage({
@@ -13,5 +15,6 @@ export default async function DashboardSectionPage({
   params: Promise<{ section: string }>;
 }) {
   const { section } = await params;
+  if (!(SECTION_SLUGS as readonly string[]).includes(section)) notFound();
   return <DashboardSection slug={section} />;
 }

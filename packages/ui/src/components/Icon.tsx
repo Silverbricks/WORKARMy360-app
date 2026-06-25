@@ -257,6 +257,34 @@ const PATHS = {
       <path d="M21 13v1a4 4 0 0 1-4 4H3" />
     </>
   ),
+  clipboard: (
+    <>
+      <rect width="8" height="4" x="8" y="2" rx="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    </>
+  ),
+  qrcode: (
+    <>
+      <rect width="5" height="5" x="3" y="3" rx="1" />
+      <rect width="5" height="5" x="16" y="3" rx="1" />
+      <rect width="5" height="5" x="3" y="16" rx="1" />
+      <path d="M21 16h-3a2 2 0 0 0-2 2v3M21 21v.01M12 7v3a2 2 0 0 1-2 2H7M3 12h.01M12 3h.01M12 16v.01M16 12h1M21 12v.01M12 21v-1" />
+    </>
+  ),
+  mapPin: (
+    <>
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </>
+  ),
+  truck: (
+    <>
+      <path d="M14 18V6a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h1" />
+      <path d="M14 9h4l4 4v4a1 1 0 0 1-1 1h-1" />
+      <circle cx="7.5" cy="18.5" r="2.5" />
+      <circle cx="17.5" cy="18.5" r="2.5" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;
