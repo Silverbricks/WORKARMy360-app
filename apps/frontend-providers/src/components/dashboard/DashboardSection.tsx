@@ -3,7 +3,6 @@
 import { OrgProfileSection } from './OrgProfileSection';
 import { HiringSection } from './HiringSection';
 import { WorkforceSection } from './WorkforceSection';
-import { MessagesSection } from './MessagesSection';
 import { FindStaffSection } from './FindStaffSection';
 import { StaffSection } from './StaffSection';
 import { MyWorkforceSection } from './MyWorkforceSection';
@@ -16,6 +15,9 @@ import { HrSection } from './HrSection';
 import { TasksSection, QrSection, SitesSection, VisitorsSection } from './OperationsSections';
 import { NetworkSection, ReportsSection } from './NetworkSections';
 import { PayRunsSection, BusinessDocsSection, PieceRatesSection } from './AccountsSections';
+import { BillingSection, BusinessCardSection, RequirementsSection } from './BusinessSections';
+import { ComplianceSection, DocumentsSection } from './ComplianceSections';
+import { SupportSection, FeedbackSection } from './SupportSections';
 import { ComingSoonSection } from './ComingSoonSection';
 
 /**
@@ -67,8 +69,21 @@ export function DashboardSection({ slug }: { slug: string }) {
       return <PieceRatesSection />;
     case 'operations':
       return <WorkforceSection />;
+    case 'membership':
+    case 'billing':
+      return <BillingSection />;
+    case 'business-card':
+      return <BusinessCardSection />;
+    case 'requirements':
+      return <RequirementsSection />;
+    case 'compliance':
+      return <ComplianceSection />;
+    case 'documents':
+      return <DocumentsSection />;
     case 'support':
-      return <MessagesSection />;
+      return <SupportSection />;
+    case 'feedback':
+      return <FeedbackSection />;
     default:
       return <ComingSoonSection slug={slug} />;
   }

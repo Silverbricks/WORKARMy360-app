@@ -601,3 +601,30 @@ export type PayRunInputData = z.infer<typeof PayRunInputSchema>;
 export type BusinessDocLineInputData = z.infer<typeof BusinessDocLineInputSchema>;
 export type BusinessDocInputData = z.infer<typeof BusinessDocInputSchema>;
 export type PieceRateInputData = z.infer<typeof PieceRateInputSchema>;
+
+// --- Membership / Business card / Requirements -----------------------------
+export const SubscribeSchema = z.object({ planCode: z.string().trim().min(1).max(40) });
+export const PaymentMethodSchema = z.object({
+  last4: z.string().trim().regex(/^\d{4}$/, 'Enter the last 4 digits'),
+  brand: z.string().trim().min(1).max(40),
+});
+export const BusinessCardSchema = z.object({
+  headline: optionalText(120),
+  tagline: optionalText(200),
+  about: optionalText(1000),
+  publicSlug: optionalText(80),
+  published: z.coerce.boolean().optional(),
+  contactEmail: optionalText(160),
+  contactPhone: optionalText(40),
+});
+export const RequirementInputSchema = z.object({
+  kind: z.enum(['NEED_STAFF', 'NEED_CLIENTS', 'OFFER_SERVICE']).optional(),
+  audience: z.enum(['B2B', 'B2C', 'BOTH']).optional(),
+  title: z.string().trim().min(1, 'Title is required').max(200),
+  description: optionalText(1000),
+  location: optionalText(120),
+});
+export type SubscribeData = z.infer<typeof SubscribeSchema>;
+export type PaymentMethodData = z.infer<typeof PaymentMethodSchema>;
+export type BusinessCardData = z.infer<typeof BusinessCardSchema>;
+export type RequirementInputData = z.infer<typeof RequirementInputSchema>;

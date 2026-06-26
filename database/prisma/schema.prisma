@@ -1617,3 +1617,93 @@ model PieceRate {
   @@index([orgId])
   @@map("piece_rates")
 }
+
+// ===========================================================================
+//  BUSINESS DASHBOARD — Membership/billing + Business card + Requirements
+// ===========================================================================
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELLED
+}
+
+enum MemberInvoiceStatus {
+  OPEN
+  PAID
+}
+
+enum RequirementKind {
+  NEED_STAFF
+  NEED_CLIENTS
+  OFFER_SERVICE
+}
+
+enum RequirementAudience {
+  B2B
+  B2C
+  BOTH
+}
+
+enum RequirementStatus {
+  OPEN
+  CLOSED
+}
+
+model Subscription {
+  id               String             @id @default(uuid()) @db.Uuid
+  orgId            String             @unique @map("org_id") @db.Uuid
+  planCode         String             @default("free") @map("plan_code")
+  status           SubscriptionStatus @default(ACTIVE)
+  currentPeriodEnd String?            @map("current_period_end")
+  paymentLast4     String?            @map("payment_last4")
+  paymentBrand     String?            @map("payment_brand")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  @@map("subscriptions")
+}
+
+model MemberInvoice {
+  id          String              @id @default(uuid()) @db.Uuid
+  orgId       String              @map("org_id") @db.Uuid
+  number      String
+  amountCents Int                 @map("amount_cents")
+  status      MemberInvoiceStatus @default(OPEN)
+  issuedAt    String              @map("issued_at")
+  paidAt      String?             @map("paid_at")
+
+  @@index([orgId])
+  @@map("member_invoices")
+}
+
+model BusinessCard {
+  id           String   @id @default(uuid()) @db.Uuid
+  orgId        String   @unique @map("org_id") @db.Uuid
+  headline     String?
+  tagline      String?
+  about        String?
+  publicSlug   String?  @unique @map("public_slug")
+  published    Boolean  @default(false)
+  contactEmail String?  @map("contact_email")
+  contactPhone String?  @map("contact_phone")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("business_cards")
+}
+
+model Requirement {
+  id          String              @id @default(uuid()) @db.Uuid
+  orgId       String              @map("org_id") @db.Uuid
+  kind        RequirementKind     @default(NEED_STAFF)
+  audience    RequirementAudience @default(BOTH)
+  title       String
+  description String?
+  location    String?
+  status      RequirementStatus   @default(OPEN)
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@map("requirements")
+}
