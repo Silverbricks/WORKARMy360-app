@@ -5,6 +5,8 @@ import type {
   CredentialView,
   MemberInvoice,
   OkResponse,
+  OrgAdmin,
+  OrgAdminInput,
   Plan,
   Requirement,
   RequirementInput,
@@ -37,6 +39,11 @@ export function createBusinessClient(http: HttpClient) {
         http.request<Requirement>('/requirements', { method: 'POST', body }),
       close: (id: string) => http.request<Requirement>(`/requirements/${id}/close`, { method: 'POST' }),
       remove: (id: string) => http.request<OkResponse>(`/requirements/${id}`, { method: 'DELETE' }),
+    },
+    admins: {
+      list: () => http.request<OrgAdmin[]>('/org-admins'),
+      add: (body: OrgAdminInput) => http.request<OrgAdmin>('/org-admins', { method: 'POST', body }),
+      remove: (id: string) => http.request<OkResponse>(`/org-admins/${id}`, { method: 'DELETE' }),
     },
     compliance: {
       credentials: () => http.request<CredentialView[]>('/org-credentials'),

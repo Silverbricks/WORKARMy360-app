@@ -18,6 +18,7 @@ import { PayRunsSection, BusinessDocsSection, PieceRatesSection } from './Accoun
 import { BillingSection, BusinessCardSection, RequirementsSection } from './BusinessSections';
 import { ComplianceSection, DocumentsSection } from './ComplianceSections';
 import { SupportSection, FeedbackSection } from './SupportSections';
+import { StaffCalculatorSection, TeamAdminsSection } from './PolishSections';
 import { ComingSoonSection } from './ComingSoonSection';
 
 /**
@@ -84,6 +85,10 @@ export function DashboardSection({ slug }: { slug: string }) {
       return <SupportSection />;
     case 'feedback':
       return <FeedbackSection />;
+    case 'staff-calculator':
+      return <StaffCalculatorSection />;
+    case 'team-admins':
+      return <TeamAdminsSection />;
     default:
       return <ComingSoonSection slug={slug} />;
   }

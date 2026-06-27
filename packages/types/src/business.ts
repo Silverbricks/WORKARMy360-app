@@ -1,6 +1,21 @@
+import type { OrgRole } from './organisation';
+
 // ---------------------------------------------------------------------------
 // Business dashboard — Membership/billing, Business card, Requirements
 // ---------------------------------------------------------------------------
+
+/** An account member who can manage the org (Team & admins). */
+export interface OrgAdmin {
+  memberId: string;
+  personId: string;
+  waId: string;
+  name: string;
+  role: OrgRole;
+}
+export interface OrgAdminInput {
+  waId: string;
+  role?: 'admin' | 'member';
+}
 
 export interface Plan {
   code: string;

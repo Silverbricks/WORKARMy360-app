@@ -624,7 +624,12 @@ export const RequirementInputSchema = z.object({
   description: optionalText(1000),
   location: optionalText(120),
 });
+export const OrgAdminInputSchema = z.object({
+  waId: z.string().trim().min(3, 'Worker ID is required').max(20),
+  role: z.enum(['admin', 'member']).optional(),
+});
 export type SubscribeData = z.infer<typeof SubscribeSchema>;
 export type PaymentMethodData = z.infer<typeof PaymentMethodSchema>;
 export type BusinessCardData = z.infer<typeof BusinessCardSchema>;
 export type RequirementInputData = z.infer<typeof RequirementInputSchema>;
+export type OrgAdminInputData = z.infer<typeof OrgAdminInputSchema>;

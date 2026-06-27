@@ -3,6 +3,8 @@ import type {
   BusinessCard,
   CredentialView,
   MemberInvoice,
+  OrgAdmin,
+  OrgRole,
   Plan,
   Requirement,
   Subscription,
@@ -11,6 +13,7 @@ import type {
 import type {
   BusinessCardData,
   CredentialInputData,
+  OrgAdminInputData,
   PaymentMethodData,
   RequirementInputData,
 } from '@workarmy/validation';
@@ -187,6 +190,59 @@ export class BusinessService {
     if (!cred) throw ApiException.notFound('Credential not found.');
     const v = await this.prisma.verification.create({ data: { subjectOrgId: orgId, credentialId, status: 'PENDING' } });
     return { id: v.id, status: v.status, credentialType: cred.type, reviewNote: v.reviewNote, reviewedAt: null, createdAt: v.createdAt.toISOString() };
+  }
+
+  // ---- Team & admins (OrgMember roles) ----
+  async listAdmins(userId: string): Promise<OrgAdmin[]> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const rows = await this.prisma.orgMember.findMany({
+      where: { orgId },
+      include: { person: { select: { waId: true, firstName: true, lastName: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((m) => ({
+      memberId: m.id,
+      personId: m.personId,
+      waId: m.person.waId,
+      name: `${m.person.firstName ?? ''} ${m.person.lastName ?? ''}`.trim() || m.person.waId,
+      role: m.role as OrgRole,
+    }));
+  }
+
+  async addAdmin(userId: string, input: OrgAdminInputData): Promise<OrgAdmin> {
+    // Only owners/admins can manage the team.
+    const { orgId } = await this.membership.requireOrgRole(userId, ['owner', 'admin']);
+    const person = await this.prisma.person.findUnique({
+      where: { waId: input.waId.trim() },
+      include: { orgMemberships: { take: 1 } },
+    });
+    if (!person) throw ApiException.badRequest('VALIDATION_ERROR', `No account found for ${input.waId}.`);
+    const existing = person.orgMemberships[0];
+    if (existing && existing.orgId !== orgId) {
+      throw ApiException.badRequest('VALIDATION_ERROR', 'That person already belongs to another organisation.');
+    }
+    const role = input.role ?? 'admin';
+    const member = await this.prisma.orgMember.upsert({
+      where: { orgId_personId: { orgId, personId: person.id } },
+      update: { role },
+      create: { orgId, personId: person.id, role },
+    });
+    return {
+      memberId: member.id,
+      personId: person.id,
+      waId: person.waId,
+      name: `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || person.waId,
+      role: member.role as OrgRole,
+    };
+  }
+
+  async removeAdmin(userId: string, memberId: string): Promise<{ ok: true }> {
+    const { orgId } = await this.membership.requireOrgRole(userId, ['owner', 'admin']);
+    const member = await this.prisma.orgMember.findFirst({ where: { id: memberId, orgId } });
+    if (!member) throw ApiException.notFound('Member not found.');
+    if (member.role === 'owner') throw ApiException.badRequest('VALIDATION_ERROR', 'The owner cannot be removed.');
+    await this.prisma.orgMember.delete({ where: { id: memberId } });
+    return { ok: true as const };
   }
 }
 

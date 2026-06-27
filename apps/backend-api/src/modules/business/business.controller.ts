@@ -2,12 +2,14 @@ import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common'
 import {
   BusinessCardSchema,
   CredentialInputSchema,
+  OrgAdminInputSchema,
   PaymentMethodSchema,
   RequirementInputSchema,
   SubscribeSchema,
   VerificationRequestSchema,
   type BusinessCardData,
   type CredentialInputData,
+  type OrgAdminInputData,
   type PaymentMethodData,
   type RequirementInputData,
   type SubscribeData,
@@ -92,5 +94,18 @@ export class BusinessController {
   @Post('org-verifications')
   requestVerification(@CurrentUser() user: { sub: string }, @Body(new ZodValidationPipe(VerificationRequestSchema)) body: VerificationRequestData) {
     return this.business.requestVerification(user.sub, body.credentialId);
+  }
+
+  @Get('org-admins')
+  listAdmins(@CurrentUser() user: { sub: string }) {
+    return this.business.listAdmins(user.sub);
+  }
+  @Post('org-admins')
+  addAdmin(@CurrentUser() user: { sub: string }, @Body(new ZodValidationPipe(OrgAdminInputSchema)) body: OrgAdminInputData) {
+    return this.business.addAdmin(user.sub, body);
+  }
+  @Delete('org-admins/:id')
+  removeAdmin(@CurrentUser() user: { sub: string }, @Param('id') id: string) {
+    return this.business.removeAdmin(user.sub, id);
   }
 }
