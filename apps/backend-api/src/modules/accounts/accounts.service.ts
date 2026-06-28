@@ -47,11 +47,8 @@ export class AccountsService {
     if (!existing) throw ApiException.notFound('Pay run not found.');
     const row = await this.prisma.payRun.update({
       where: { id },
-      data: {
-        status,
-        abaGenerated: status !== 'DRAFT' ? true : undefined,
-        stpLodged: status === 'PAID' ? true : undefined,
-      },
+      // Always set the flags from status so moving back to DRAFT clears them.
+      data: { status, abaGenerated: status !== 'DRAFT', stpLodged: status === 'PAID' },
     });
     return toPayRun(row);
   }

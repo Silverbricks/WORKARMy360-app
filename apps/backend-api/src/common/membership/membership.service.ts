@@ -25,6 +25,8 @@ export class MembershipService {
           include: {
             orgMemberships: {
               take: 1,
+              // Deterministic when a person belongs to >1 org: oldest membership wins.
+              orderBy: { createdAt: 'asc' },
               include: { organisation: { select: { verificationStatus: true } } },
             },
           },

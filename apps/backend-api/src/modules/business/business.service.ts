@@ -55,12 +55,15 @@ export class BusinessService {
     const { orgId } = await this.membership.requireOrg(userId);
     const plan = PLANS.find((p) => p.code === planCode);
     if (!plan) throw ApiException.badRequest('VALIDATION_ERROR', 'Unknown plan.');
+    const before = await this.prisma.subscription.findUnique({ where: { orgId }, select: { planCode: true, status: true } });
+    const planChanged = before?.planCode !== planCode || before?.status === 'CANCELLED';
     const sub = await this.prisma.subscription.upsert({
       where: { orgId },
       update: { planCode, status: 'ACTIVE', currentPeriodEnd: periodEnd() },
       create: { orgId, planCode, status: 'ACTIVE', currentPeriodEnd: periodEnd() },
     });
-    if (plan.priceCents > 0) {
+    // Only mint an invoice on an actual change to a paid plan (no double-billing on repeat clicks).
+    if (plan.priceCents > 0 && planChanged) {
       const count = await this.prisma.memberInvoice.count({ where: { orgId } });
       await this.prisma.memberInvoice.create({
         data: {
@@ -220,6 +223,9 @@ export class BusinessService {
     const existing = person.orgMemberships[0];
     if (existing && existing.orgId !== orgId) {
       throw ApiException.badRequest('VALIDATION_ERROR', 'That person already belongs to another organisation.');
+    }
+    if (existing && existing.orgId === orgId && existing.role === 'owner') {
+      throw ApiException.badRequest('VALIDATION_ERROR', 'The owner’s role can’t be changed here.');
     }
     const role = input.role ?? 'admin';
     const member = await this.prisma.orgMember.upsert({

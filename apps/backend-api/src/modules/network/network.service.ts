@@ -22,7 +22,8 @@ export class NetworkService {
     const orgs = await this.prisma.organisation.findMany({
       where: {
         verificationStatus: 'APPROVED',
-        accountType: { in: ['CONTRACTOR', 'LABOUR_HIRE', 'RECRUITMENT_AGENCY', 'EMPLOYER', 'FARM'] },
+        // Only engageable service providers — not other employers/farms (clients).
+        accountType: { in: ['CONTRACTOR', 'LABOUR_HIRE', 'RECRUITMENT_AGENCY'] },
         NOT: { id: orgId },
       },
       include: { profile: { select: { industry: true, region: true } } },
@@ -95,8 +96,10 @@ export class NetworkService {
     const [payroll, hours, positions, filled, rating, openRoles, activeWorkers] = await Promise.all([
       this.prisma.payslip.aggregate({ where: { orgId }, _sum: { grossPay: true } }),
       this.prisma.timesheet.aggregate({ where: { orgId }, _sum: { totalHours: true } }),
-      this.prisma.shift.aggregate({ where: { orgId }, _sum: { positions: true } }),
-      this.prisma.shiftAssignment.count({ where: { shift: { orgId }, status: { in: ['CONFIRMED', 'ACCEPTED', 'COMPLETED'] } } }),
+      // Fill rate measured on open shifts only — roster shifts have positions=1 but
+      // many assignments, which would skew the ratio.
+      this.prisma.shift.aggregate({ where: { orgId, isRoster: false }, _sum: { positions: true } }),
+      this.prisma.shiftAssignment.count({ where: { shift: { orgId, isRoster: false }, status: { in: ['CONFIRMED', 'ACCEPTED', 'COMPLETED'] } } }),
       this.prisma.performanceReview.aggregate({ where: { orgId }, _avg: { rating: true } }),
       this.prisma.job.count({ where: { orgId, status: 'PUBLISHED' } }),
       this.prisma.orgWorker.count({ where: { orgId, active: true } }),

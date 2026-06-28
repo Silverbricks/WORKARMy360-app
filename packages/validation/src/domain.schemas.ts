@@ -408,9 +408,9 @@ export const WorkerDirectoryQuerySchema = z.object({
 export const WorkerInviteSchema = z.object({ message: optionalText(500) });
 export const RosterInputSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(160),
-  date: z.string().trim().min(1, 'Date is required'),
-  start: z.string().trim().min(1, 'Start time is required'),
-  end: z.string().trim().min(1, 'End time is required'),
+  date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a valid date'),
+  start: z.string().trim().regex(/^\d{2}:\d{2}$/, 'Use HH:MM'),
+  end: z.string().trim().regex(/^\d{2}:\d{2}$/, 'Use HH:MM'),
   teamId: z.string().uuid().optional(),
   waIds: z.array(z.string().trim().min(3).max(20)).max(100).optional(),
 });

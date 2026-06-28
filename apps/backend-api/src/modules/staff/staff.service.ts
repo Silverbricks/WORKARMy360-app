@@ -271,6 +271,9 @@ export class StaffService {
     const { orgId } = await this.membership.requireOrg(userId);
     const startAt = new Date(`${input.date}T${input.start}:00Z`);
     const endAt = new Date(`${input.date}T${input.end}:00Z`);
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+      throw ApiException.badRequest('VALIDATION_ERROR', 'Invalid roster date or time.');
+    }
     const personIds: string[] = [];
     for (const waId of input.waIds ?? []) {
       const p = await this.personByWaId(waId);

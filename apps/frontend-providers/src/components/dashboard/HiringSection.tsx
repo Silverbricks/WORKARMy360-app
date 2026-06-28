@@ -332,6 +332,9 @@ function Applicants({ jobs, stages, title }: { jobs: Job[]; stages: ApplicationS
   const [error, setError] = useState<string | null>(null);
 
   const relevantJobs = useMemo(() => jobs.filter((j) => j.status !== 'DRAFT'), [jobs]);
+  // Stable signature of the relevant jobs so applicants refetch when the set OR a
+  // title changes — not just when the count happens to differ.
+  const jobsKey = relevantJobs.map((j) => `${j.id}:${j.title}`).join('|');
 
   async function load() {
     setError(null);
@@ -351,7 +354,7 @@ function Applicants({ jobs, stages, title }: { jobs: Job[]; stages: ApplicationS
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [relevantJobs.length]);
+  }, [jobsKey]);
 
   async function setStage(id: string, toStage: ApplicationStage) {
     try {

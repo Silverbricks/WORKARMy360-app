@@ -72,7 +72,6 @@ export function StaffRequestFormSection() {
     setRequests(await api.staffing.requests.list());
   }
   useEffect(() => {
-    setForm((f) => ({ ...f, roleTitle: f.roleTitle }));
     load().catch((e) => setError(errorMessage(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

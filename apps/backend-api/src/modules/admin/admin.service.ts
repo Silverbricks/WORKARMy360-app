@@ -123,15 +123,16 @@ export class AdminService {
   ): Promise<OkResponse> {
     const existing = await this.prisma.verification.findUnique({
       where: { id },
-      select: { id: true, subjectOrgId: true },
+      select: { id: true, subjectOrgId: true, credentialId: true },
     });
     if (!existing) throw ApiException.notFound('Verification not found.');
     await this.prisma.verification.update({
       where: { id },
       data: { status, reviewedByUserId: userId, reviewNote: note ?? null, reviewedAt: new Date() },
     });
-    // Propagate an org-subject decision to the org's verification gate.
-    if (existing.subjectOrgId) {
+    // Propagate ONLY an org-level decision (no credential) to the org's gate — a
+    // single credential review must not flip the whole organisation's status.
+    if (existing.subjectOrgId && !existing.credentialId) {
       await this.prisma.organisation.update({
         where: { id: existing.subjectOrgId },
         data: { verificationStatus: status, verifiedAt: status === 'APPROVED' ? new Date() : null },

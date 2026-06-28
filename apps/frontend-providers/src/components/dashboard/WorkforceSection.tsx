@@ -1,6 +1,7 @@
 'use client';
 
 import { type FormEvent, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { Payslip, PayslipInput, ShiftInput, ShiftWithAssignments, TimesheetView } from '@workarmy/types';
 import { Alert, Button, Card, Field, Input, cn, formatCurrencyAUD } from '@workarmy/ui';
 import { api } from '@/lib/api';
@@ -22,7 +23,10 @@ function fmtTime(iso: string | null): string {
 }
 
 export function WorkforceSection() {
-  const [tab, setTab] = useState<Tab>('shifts');
+  // Honour the nav deep-links: ?tab=timesheets / ?tab=attendance (→ shifts) etc.
+  const tabParam = useSearchParams().get('tab');
+  const initialTab: Tab = tabParam === 'timesheets' ? 'timesheets' : tabParam === 'payslips' ? 'payslips' : 'shifts';
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [shifts, setShifts] = useState<ShiftWithAssignments[]>([]);
   const [timesheets, setTimesheets] = useState<TimesheetView[]>([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
