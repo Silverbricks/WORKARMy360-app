@@ -279,9 +279,27 @@ export class PlannerController {
     return this.planner.unassign(user.sub, id);
   }
 
-  // ---- Summary ----
+  // ---- Summary / Grid / Who's turning up ----
   @Get('planner/summary')
   summary(@CurrentUser() user: { sub: string }, @Query() query: { from?: string; to?: string }) {
     return this.planner.summary(user.sub, { from: query.from, to: query.to });
   }
+
+  @Get('planner/grid')
+  grid(@CurrentUser() user: { sub: string }, @Query() query: { weekStart?: string }) {
+    return this.planner.grid(user.sub, query.weekStart ?? mondayOf(new Date()));
+  }
+
+  @Get('planner/turnup')
+  turnup(@CurrentUser() user: { sub: string }, @Query() query: { from?: string; to?: string }) {
+    return this.planner.turnup(user.sub, { from: query.from, to: query.to });
+  }
+}
+
+/** Monday of the given date's week, as YYYY-MM-DD (UTC). */
+function mondayOf(d: Date): string {
+  const u = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = (u.getUTCDay() + 6) % 7;
+  u.setUTCDate(u.getUTCDate() - day);
+  return u.toISOString().slice(0, 10);
 }

@@ -5,8 +5,14 @@ import type {
   OpenShift,
   PlannerCandidate,
   PlannerSummary,
+  RosterAssignment,
+  RosterGridRow,
+  RosterLeaveCell,
+  RosterOpenCell,
   RosterTemplateView,
+  RosterWeek,
   StaffingRequirementView,
+  WhosTurningUpDay,
 } from '@workarmy/types';
 import type {
   PlannerAssignData,
@@ -608,6 +614,146 @@ export class PlannerService {
       create: { requirementId: id, personId, source: 'NEARBY', status: 'ASSIGNED' },
     });
     return this.view(r.orgId, id);
+  }
+
+  // ---- grid + who's turning up ---------------------------------------------
+
+  async grid(userId: string, weekStart: string): Promise<RosterWeek> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const days = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
+    const [reqs, leaves, available] = await Promise.all([
+      this.prisma.staffingRequirement.findMany({
+        where: { orgId, date: { gte: days[0], lte: days[6] } },
+        include: { assignments: true },
+        orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      }),
+      this.prisma.leaveRequest.findMany({ where: { orgId, status: 'APPROVED' } }),
+      this.prisma.orgWorker.count({ where: { orgId, active: true } }),
+    ]);
+    const persons = await this.personsFor(reqs);
+    const personIds = [...persons.keys()];
+    const workers = personIds.length
+      ? await this.prisma.orgWorker.findMany({ where: { orgId, personId: { in: personIds } }, select: { personId: true, source: true } })
+      : [];
+    const sourceBy = new Map(workers.map((w) => [w.personId, w.source]));
+
+    const rowMap = new Map<string, RosterGridRow>();
+    const openByDate: Record<string, RosterOpenCell[]> = {};
+    let required = 0;
+    let assigned = 0;
+    let hours = 0;
+    let estPayroll = 0;
+
+    for (const r of reqs) {
+      required += r.requiredCount;
+      const act = activeCount(r.assignments);
+      assigned += act;
+      const h = shiftHours(r.startTime, r.endTime);
+      hours += h * act;
+      estPayroll += (r.payRate ?? 0) * h * act;
+
+      for (const a of r.assignments) {
+        if (!ACTIVE_ASSIGNMENT.includes(a.status)) continue;
+        let row = rowMap.get(a.personId);
+        if (!row) {
+          const p = persons.get(a.personId);
+          row = { personId: a.personId, waId: p?.waId ?? null, name: p?.name ?? '(unknown)', source: sourceBy.get(a.personId) ?? null, cellsByDate: {} };
+          rowMap.set(a.personId, row);
+        }
+        const cells = row.cellsByDate[r.date] ?? [];
+        cells.push({
+          requirementId: r.id,
+          assignmentId: a.id,
+          role: r.role,
+          category: r.category,
+          startTime: r.startTime,
+          endTime: r.endTime,
+          locationText: r.locationText,
+          status: r.status,
+        });
+        row.cellsByDate[r.date] = cells;
+      }
+
+      const vacant = r.requiredCount - act;
+      if (vacant > 0) {
+        const list = openByDate[r.date] ?? [];
+        list.push({ requirementId: r.id, role: r.role, category: r.category, startTime: r.startTime, endTime: r.endTime, locationText: r.locationText, vacant });
+        openByDate[r.date] = list;
+      }
+    }
+
+    const leaveByDate: Record<string, RosterLeaveCell[]> = {};
+    for (const d of days) {
+      for (const l of leaves) {
+        if (d >= l.startDate && d <= l.endDate) {
+          const list = leaveByDate[d] ?? [];
+          list.push({ name: l.personName, type: l.type });
+          leaveByDate[d] = list;
+        }
+      }
+    }
+
+    const rows = [...rowMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+    const leaveCount = leaves.filter((l) => days.some((d) => d >= l.startDate && d <= l.endDate)).length;
+
+    return {
+      weekStart,
+      days,
+      rows,
+      openByDate,
+      leaveByDate,
+      summary: {
+        required,
+        assigned,
+        vacant: Math.max(0, required - assigned),
+        leave: leaveCount,
+        overtime: 0,
+        available,
+        hours: Math.round(hours),
+        estPayroll: Math.round(estPayroll),
+      },
+    };
+  }
+
+  /** Who's Turning Up — merges planner requirement assignments with legacy roster shifts. */
+  async turnup(userId: string, q: { from?: string; to?: string }): Promise<WhosTurningUpDay[]> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const byDate = new Map<string, RosterAssignment[]>();
+    const push = (date: string, a: RosterAssignment) => {
+      const list = byDate.get(date) ?? [];
+      list.push(a);
+      byDate.set(date, list);
+    };
+
+    const reqs = await this.prisma.staffingRequirement.findMany({ where: { orgId, ...dateFilter(q) }, include: { assignments: true } });
+    const persons = await this.personsFor(reqs);
+    for (const r of reqs) {
+      for (const a of r.assignments) {
+        const p = persons.get(a.personId);
+        push(r.date, { id: a.id, waId: p?.waId ?? '', name: p?.name ?? '(unknown)', status: a.status });
+      }
+    }
+
+    const shifts = await this.prisma.shift.findMany({
+      where: { orgId, isRoster: true },
+      include: { assignments: { include: { person: { select: { waId: true, firstName: true, lastName: true } } } } },
+    });
+    for (const s of shifts) {
+      const date = s.startAt.toISOString().slice(0, 10);
+      if (q.from && date < q.from) continue;
+      if (q.to && date > q.to) continue;
+      for (const a of s.assignments) push(date, { id: a.id, waId: a.person.waId, name: nameOf(a.person), status: a.status });
+    }
+
+    return [...byDate.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, assignments]) => ({
+        date,
+        confirmed: assignments.filter((x) => ['ACCEPTED', 'CONFIRMED', 'COMPLETED'].includes(x.status)).length,
+        pending: assignments.filter((x) => x.status === 'ASSIGNED').length,
+        declined: assignments.filter((x) => ['DECLINED', 'NO_SHOW'].includes(x.status)).length,
+        assignments,
+      }));
   }
 
   private async notifyAssigned(personIds: string[], role: string, date: string): Promise<void> {

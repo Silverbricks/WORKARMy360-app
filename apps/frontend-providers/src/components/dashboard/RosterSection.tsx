@@ -9,6 +9,7 @@ import type {
   ResolvedConfig,
   RosterSource,
   RosterTemplateView,
+  RosterWeek,
   StaffingRequirementView,
   WhosTurningUpDay,
 } from '@workarmy/types';
@@ -54,9 +55,21 @@ function dayLabel(iso: string): string {
   return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 function nextDay(iso: string): string {
+  return addDaysISO(iso, 1);
+}
+function addDaysISO(iso: string, n: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
+}
+function mondayOfToday(): string {
+  const d = new Date();
+  const u = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  u.setUTCDate(u.getUTCDate() - ((u.getUTCDay() + 6) % 7));
+  return u.toISOString().slice(0, 10);
+}
+function dShort(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric' });
 }
 
 export function RosterSection() {
@@ -106,7 +119,7 @@ export function RosterSection() {
       </div>
 
       {tab === 'planner' ? <PlannerTab config={config} /> : null}
-      {tab === 'grid' ? <GridPlaceholder /> : null}
+      {tab === 'grid' ? <GridTab config={config} /> : null}
       {tab === 'turnup' ? <TurnUpTab /> : null}
 
       {builderOpen ? <RosterBuilderDrawer config={config} onChange={setConfig} onClose={() => setBuilderOpen(false)} /> : null}
@@ -480,15 +493,166 @@ function Stat({ label, value, tone }: { label: string; value: number | string; t
   );
 }
 
-function GridPlaceholder() {
+function GridTab({ config }: { config: ResolvedConfig | null }) {
+  const [weekStart, setWeekStart] = useState(mondayOfToday());
+  const [week, setWeek] = useState<RosterWeek | null>(null);
+  const [reqMap, setReqMap] = useState<Map<string, StaffingRequirementView>>(new Map());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [assignReq, setAssignReq] = useState<StaffingRequirementView | null>(null);
+
+  async function load() {
+    const [w, list] = await Promise.all([
+      api.planner.grid(weekStart),
+      api.planner.requirements.list({ from: weekStart, to: addDaysISO(weekStart, 6) }),
+    ]);
+    setWeek(w);
+    setReqMap(new Map(list.map((r) => [r.id, r])));
+  }
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    (async () => {
+      try {
+        await load();
+      } catch (e) {
+        if (active) setError(errorMessage(e));
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekStart]);
+
+  const catColor = (key: string) => config?.categories.find((c) => c.key === key)?.color ?? '#64748B';
+  const cols = '160px repeat(7, minmax(110px, 1fr))';
+  const openCell = (id: string) => {
+    const r = reqMap.get(id);
+    if (r) setAssignReq(r);
+  };
+
+  if (loading) return <div className="py-16 text-center text-[#64748B]">Loading…</div>;
+  if (error) return <Alert tone="error">{error}</Alert>;
+  if (!week) return null;
+
+  const hasLeave = Object.keys(week.leaveByDate).length > 0;
+
   return (
-    <Card className="p-10 text-center">
-      <p className="text-sm font-medium text-[#1E293B]">Weekly grid</p>
-      <p className="mx-auto mt-1 max-w-md text-xs text-[#94A3B8]">
-        The staff × days grid view of this week&apos;s demand and assignments is coming in the grid phase. For now, plan and fill
-        demand in the Planner tab.
-      </p>
-    </Card>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={() => setWeekStart(addDaysISO(weekStart, -7))}>
+            ‹
+          </Button>
+          <span className="min-w-[150px] text-center text-sm font-medium text-[#1E293B]">
+            {dayLabel(week.days[0])} – {dayLabel(week.days[6])}
+          </span>
+          <Button size="sm" variant="secondary" onClick={() => setWeekStart(addDaysISO(weekStart, 7))}>
+            ›
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setWeekStart(mondayOfToday())}>
+            This week
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        <Stat label="Shifts" value={week.rows.reduce((n, r) => n + Object.values(r.cellsByDate).reduce((m, c) => m + c.length, 0), 0)} />
+        <Stat label="Hours" value={`${week.summary.hours}h`} />
+        <Stat label="Required" value={week.summary.required} />
+        <Stat label="Assigned" value={week.summary.assigned} tone="ok" />
+        <Stat label="Vacant" value={week.summary.vacant} tone={week.summary.vacant > 0 ? 'bad' : 'ok'} />
+        <Stat label="On leave" value={week.summary.leave} />
+      </div>
+
+      <Card className="overflow-x-auto p-0">
+        <div className="min-w-[860px]">
+          {/* header */}
+          <div className="grid border-b border-[#E5E7EB]" style={{ gridTemplateColumns: cols }}>
+            <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#94A3B8]">Workers</div>
+            {week.days.map((d) => (
+              <div key={d} className="border-l border-[#E5E7EB] px-2 py-2 text-center text-xs font-semibold text-[#1E293B]">
+                {dShort(d)}
+              </div>
+            ))}
+          </div>
+
+          {/* worker rows */}
+          {week.rows.length === 0 ? (
+            <div className="px-3 py-6 text-center text-sm text-[#94A3B8]">No one rostered this week yet.</div>
+          ) : (
+            week.rows.map((row) => (
+              <div key={row.personId ?? row.name} className="grid border-b border-[#F1F5F9]" style={{ gridTemplateColumns: cols }}>
+                <div className="px-3 py-2">
+                  <p className="truncate text-sm font-medium text-[#1E293B]">{row.name}</p>
+                  {row.source ? <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', sourceTone[row.source])}>{sourceLabel[row.source]}</span> : null}
+                </div>
+                {week.days.map((d) => (
+                  <div key={d} className="min-h-[52px] border-l border-[#F1F5F9] p-1">
+                    {(row.cellsByDate[d] ?? []).map((c) => (
+                      <button
+                        key={c.assignmentId}
+                        type="button"
+                        onClick={() => openCell(c.requirementId)}
+                        className="mb-1 block w-full rounded-md border-l-[3px] bg-[#F8FAFC] px-1.5 py-1 text-left"
+                        style={{ borderLeftColor: catColor(c.category) }}
+                      >
+                        <span className="block truncate text-[11px] font-semibold text-[#1E293B]">{c.role}</span>
+                        <span className="block text-[10px] text-[#64748B]">
+                          {c.startTime}–{c.endTime}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+
+          {/* open shifts row */}
+          <div className="grid bg-[#FFFBEB]" style={{ gridTemplateColumns: cols }}>
+            <div className="px-3 py-2 text-xs font-semibold text-[#92400E]">Open shifts</div>
+            {week.days.map((d) => (
+              <div key={d} className="min-h-[44px] border-l border-[#F8E3B5] p-1">
+                {(week.openByDate[d] ?? []).map((o) => (
+                  <button
+                    key={o.requirementId}
+                    type="button"
+                    onClick={() => openCell(o.requirementId)}
+                    className="mb-1 block w-full rounded-md border border-dashed border-[#E5B567] bg-white px-1.5 py-1 text-left"
+                  >
+                    <span className="block truncate text-[11px] font-semibold text-[#92400E]">{o.role}</span>
+                    <span className="block text-[10px] text-[#B45309]">{o.vacant} vacant</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* leave row */}
+          {hasLeave ? (
+            <div className="grid border-t border-[#E5E7EB]" style={{ gridTemplateColumns: cols }}>
+              <div className="px-3 py-2 text-xs font-semibold text-[#64748B]">Leave</div>
+              {week.days.map((d) => (
+                <div key={d} className="border-l border-[#F1F5F9] p-1">
+                  {(week.leaveByDate[d] ?? []).map((l, i) => (
+                    <span key={`${l.name}-${i}`} className="mb-1 block rounded bg-[#EEF2FF] px-1.5 py-0.5 text-[10px] text-[#4338CA]">
+                      {l.name} · {l.type}
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </Card>
+
+      {assignReq ? <RequirementAssignDrawer requirement={assignReq} onChanged={load} onClose={() => setAssignReq(null)} /> : null}
+    </div>
   );
 }
 
@@ -500,7 +664,7 @@ function TurnUpTab() {
     let active = true;
     (async () => {
       try {
-        const data = await api.staff.rosters.turnup();
+        const data = await api.planner.turnup();
         if (active) setDays(data);
       } catch (e) {
         if (active) setError(errorMessage(e));
