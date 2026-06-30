@@ -1,17 +1,41 @@
 import { Injectable } from '@nestjs/common';
-import type { AssignmentStatus, Prisma } from '@workarmy/database';
-import type { OkResponse, PlannerCandidate, PlannerSummary, StaffingRequirementView } from '@workarmy/types';
+import type { AssignmentStatus, DispatchChannel, Prisma } from '@workarmy/database';
+import type {
+  OkResponse,
+  OpenShift,
+  PlannerCandidate,
+  PlannerSummary,
+  RosterTemplateView,
+  StaffingRequirementView,
+} from '@workarmy/types';
 import type {
   PlannerAssignData,
+  PlannerCopyData,
+  PlannerFromTemplateData,
+  PlannerRepeatData,
   PlannerRespondData,
+  RosterTemplateInputData,
   StaffingRequirementInputData,
   StaffingRequirementUpdateData,
 } from '@workarmy/validation';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MembershipService } from '../../common/membership/membership.service';
-import { ApiException } from '../../common/errors/api-exception';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ConfigService } from '../platform/config.service';
+import { PlatformEventsService } from '../platform/platform-events.service';
+import { ApiException } from '../../common/errors/api-exception';
 import { PlannerConflictService, isoWeekKey } from './planner-conflict.service';
+
+type ReqAssignmentRow = { personId: string; status: AssignmentStatus };
+const activeCount = (assignments: ReqAssignmentRow[]) =>
+  assignments.filter((a) => ACTIVE_ASSIGNMENT.includes(a.status)).length;
+
+/** ISO date + N days (UTC-safe). */
+function addDaysISO(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
 
 /** Assignment statuses that count toward a requirement being filled. */
 export const ACTIVE_ASSIGNMENT: AssignmentStatus[] = ['ASSIGNED', 'CONFIRMED', 'ACCEPTED', 'COMPLETED'];
@@ -38,6 +62,8 @@ export class PlannerService {
     private readonly membership: MembershipService,
     private readonly config: ConfigService,
     private readonly conflict: PlannerConflictService,
+    private readonly notifications: NotificationsService,
+    private readonly events: PlatformEventsService,
   ) {}
 
   // ---- requirements --------------------------------------------------------
@@ -318,6 +344,283 @@ export class PlannerService {
       vacant -= 1;
     }
     return this.view(orgId, id);
+  }
+
+  // ---- templates -----------------------------------------------------------
+
+  async listTemplates(userId: string): Promise<RosterTemplateView[]> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const rows = await this.prisma.rosterTemplate.findMany({ where: { orgId }, orderBy: { name: 'asc' } });
+    return rows.map((t) => ({
+      id: t.id,
+      name: t.name,
+      category: t.category,
+      role: t.role,
+      startTime: t.startTime,
+      endTime: t.endTime,
+      siteId: t.siteId,
+      requiredCount: t.requiredCount,
+      payRate: t.payRate,
+      payUnit: t.payUnit,
+      templateKey: t.templateKey,
+    }));
+  }
+
+  async createTemplate(userId: string, input: RosterTemplateInputData): Promise<RosterTemplateView> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const t = await this.prisma.rosterTemplate.create({
+      data: {
+        orgId,
+        name: input.name,
+        category: input.category ?? 'general',
+        role: input.role ?? null,
+        startTime: input.startTime ?? null,
+        endTime: input.endTime ?? null,
+        siteId: input.siteId ?? null,
+        requiredCount: input.requiredCount ?? 1,
+        payRate: input.payRate ?? null,
+        payUnit: input.payUnit ?? null,
+      },
+    });
+    return {
+      id: t.id,
+      name: t.name,
+      category: t.category,
+      role: t.role,
+      startTime: t.startTime,
+      endTime: t.endTime,
+      siteId: t.siteId,
+      requiredCount: t.requiredCount,
+      payRate: t.payRate,
+      payUnit: t.payUnit,
+      templateKey: t.templateKey,
+    };
+  }
+
+  async removeTemplate(userId: string, id: string): Promise<OkResponse> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    await this.prisma.rosterTemplate.deleteMany({ where: { id, orgId } });
+    return { ok: true };
+  }
+
+  async fromTemplate(userId: string, body: PlannerFromTemplateData): Promise<StaffingRequirementView> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const t = await this.prisma.rosterTemplate.findFirst({ where: { id: body.templateId, orgId } });
+    if (!t) throw ApiException.notFound('Template not found.');
+    const r = await this.prisma.staffingRequirement.create({
+      data: {
+        orgId,
+        date: body.date,
+        startTime: t.startTime ?? '09:00',
+        endTime: t.endTime ?? '17:00',
+        role: t.role ?? t.name,
+        category: t.category,
+        siteId: t.siteId,
+        payRate: t.payRate,
+        payUnit: t.payUnit,
+        requiredCount: t.requiredCount,
+        status: 'OPEN',
+      },
+      include: { assignments: true },
+    });
+    return toView(r, new Map());
+  }
+
+  // ---- copy / repeat -------------------------------------------------------
+
+  async copy(userId: string, body: PlannerCopyData): Promise<StaffingRequirementView[]> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const src = await this.prisma.staffingRequirement.findMany({ where: { orgId, date: body.fromDate } });
+    const created = await this.prisma.$transaction(
+      src.map((r) =>
+        this.prisma.staffingRequirement.create({
+          data: {
+            orgId,
+            date: body.toDate,
+            startTime: r.startTime,
+            endTime: r.endTime,
+            role: r.role,
+            category: r.category,
+            siteId: r.siteId,
+            locationText: r.locationText,
+            client: r.client,
+            payRate: r.payRate,
+            payUnit: r.payUnit,
+            requiredCount: r.requiredCount,
+            notes: r.notes,
+            status: 'DRAFT',
+          },
+          include: { assignments: true },
+        }),
+      ),
+    );
+    return created.map((r) => toView(r, new Map()));
+  }
+
+  async repeat(userId: string, id: string, body: PlannerRepeatData): Promise<StaffingRequirementView[]> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const r = await this.prisma.staffingRequirement.findFirst({ where: { id, orgId } });
+    if (!r) throw ApiException.notFound('Requirement not found.');
+    const step = body.pattern === 'DAILY' ? 1 : body.pattern === 'FORTNIGHTLY' ? 14 : 7;
+    const dates = Array.from({ length: body.count }, (_, i) => addDaysISO(r.date, step * (i + 1)));
+    const created = await this.prisma.$transaction(
+      dates.map((date) =>
+        this.prisma.staffingRequirement.create({
+          data: {
+            orgId,
+            date,
+            startTime: r.startTime,
+            endTime: r.endTime,
+            role: r.role,
+            category: r.category,
+            siteId: r.siteId,
+            locationText: r.locationText,
+            client: r.client,
+            payRate: r.payRate,
+            payUnit: r.payUnit,
+            requiredCount: r.requiredCount,
+            notes: r.notes,
+            status: 'DRAFT',
+          },
+          include: { assignments: true },
+        }),
+      ),
+    );
+    return created.map((c) => toView(c, new Map()));
+  }
+
+  // ---- publish + cascade ---------------------------------------------------
+
+  async publish(userId: string, id: string): Promise<StaffingRequirementView> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const r = await this.prisma.staffingRequirement.findFirst({ where: { id, orgId }, include: { assignments: true } });
+    if (!r) throw ApiException.notFound('Requirement not found.');
+    await this.prisma.staffingRequirement.update({ where: { id }, data: { status: 'PUBLISHED', publishedAt: new Date() } });
+    await this.notifyAssigned(r.assignments.map((a) => a.personId), r.role, r.date);
+    await this.events.emit('REQUIREMENT_PUBLISHED', userId, { orgId, requirementId: id });
+    if (r.openMarketplace && r.requiredCount - activeCount(r.assignments) > 0) {
+      await this.maybeCascade(orgId, userId, id);
+    }
+    return this.view(orgId, id);
+  }
+
+  async publishRange(userId: string, from: string, to: string): Promise<OkResponse> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const rows = await this.prisma.staffingRequirement.findMany({
+      where: { orgId, date: { gte: from, lte: to }, status: { in: ['DRAFT', 'OPEN'] } },
+      include: { assignments: true },
+    });
+    for (const r of rows) {
+      await this.prisma.staffingRequirement.update({ where: { id: r.id }, data: { status: 'PUBLISHED', publishedAt: new Date() } });
+      await this.notifyAssigned(r.assignments.map((a) => a.personId), r.role, r.date);
+      if (r.openMarketplace && r.requiredCount - activeCount(r.assignments) > 0) {
+        await this.maybeCascade(orgId, userId, r.id);
+      }
+    }
+    await this.events.emit('REQUIREMENT_PUBLISHED', userId, { orgId, from, to, count: rows.length });
+    return { ok: true };
+  }
+
+  async cascade(userId: string, id: string, channels?: string[]): Promise<StaffingRequirementView> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const config = await this.config.resolve(orgId);
+    if (!config.modules.find((m) => m.key === 'marketplace' && m.enabled)) {
+      throw ApiException.badRequest('VALIDATION_ERROR', 'Enable the Open-Shift Marketplace module in Roster Builder to cascade open shifts.');
+    }
+    await this.prisma.staffingRequirement.update({ where: { id }, data: { openMarketplace: true } });
+    await this.runCascade(orgId, userId, id, channels);
+    return this.view(orgId, id);
+  }
+
+  /** Best-effort cascade used on publish (never throws into the publish flow). */
+  private async maybeCascade(orgId: string, userId: string, id: string): Promise<void> {
+    const config = await this.config.resolve(orgId);
+    if (!config.modules.find((m) => m.key === 'marketplace' && m.enabled)) return;
+    await this.runCascade(orgId, userId, id);
+  }
+
+  private async runCascade(orgId: string, userId: string, id: string, channels?: string[]): Promise<void> {
+    const r = await this.prisma.staffingRequirement.findFirst({ where: { id, orgId }, include: { assignments: true } });
+    if (!r) return;
+    const vacant = r.requiredCount - activeCount(r.assignments);
+    const targets = (channels?.length ? channels : ['ON_CALL', 'CONTRACTORS', 'AGENCIES']) as DispatchChannel[];
+    const dispatch = await this.prisma.dispatch.create({
+      data: {
+        orgId,
+        message: `Open shift: ${r.role} on ${r.date} ${r.startTime}–${r.endTime}${r.locationText ? ` · ${r.locationText}` : ''}`,
+        roleNeeded: r.role,
+        headcount: vacant,
+        whenAt: `${r.date} ${r.startTime}`,
+        status: 'OPEN',
+        targets: { create: targets.map((channel) => ({ channel })) },
+      },
+    });
+    // Notify on-call workers' user accounts (best-effort).
+    const onCall = await this.prisma.orgWorker.findMany({
+      where: { orgId, active: true, onCall: true },
+      include: { person: { select: { userId: true } } },
+    });
+    for (const w of onCall) {
+      await this.notifications.notify(w.person.userId, {
+        kind: 'open-shift',
+        title: 'Open shift available',
+        body: `${r.role} on ${r.date}, ${r.startTime}–${r.endTime}`,
+        link: '/dashboard/work?tab=shifts',
+      });
+    }
+    await this.events.emit('REQUIREMENT_CASCADED', userId, { orgId, requirementId: id, dispatchId: dispatch.id, vacant });
+  }
+
+  async openShifts(userId: string, q: { from?: string; to?: string }): Promise<OpenShift[]> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const rows = await this.prisma.staffingRequirement.findMany({
+      where: { orgId, status: 'PUBLISHED', ...dateFilter(q) },
+      include: { assignments: true },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+    });
+    return rows
+      .map((r) => ({
+        requirementId: r.id,
+        date: r.date,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        role: r.role,
+        category: r.category,
+        locationText: r.locationText,
+        client: r.client,
+        vacant: r.requiredCount - activeCount(r.assignments),
+      }))
+      .filter((o) => o.vacant > 0);
+  }
+
+  /** A worker claims a vacant published open shift (thin marketplace). */
+  async claim(userId: string, id: string): Promise<StaffingRequirementView> {
+    const personId = await this.membership.requirePerson(userId);
+    const r = await this.prisma.staffingRequirement.findUnique({ where: { id }, include: { assignments: true } });
+    if (!r) throw ApiException.notFound('Shift not found.');
+    if (r.status !== 'PUBLISHED') throw ApiException.badRequest('VALIDATION_ERROR', 'This shift is not open.');
+    if (!r.assignments.some((a) => a.personId === personId) && r.requiredCount - activeCount(r.assignments) <= 0) {
+      throw ApiException.badRequest('VALIDATION_ERROR', 'This shift is already full.');
+    }
+    await this.prisma.requirementAssignment.upsert({
+      where: { requirementId_personId: { requirementId: id, personId } },
+      update: { status: 'ASSIGNED', source: 'NEARBY' },
+      create: { requirementId: id, personId, source: 'NEARBY', status: 'ASSIGNED' },
+    });
+    return this.view(r.orgId, id);
+  }
+
+  private async notifyAssigned(personIds: string[], role: string, date: string): Promise<void> {
+    if (personIds.length === 0) return;
+    const persons = await this.prisma.person.findMany({ where: { id: { in: personIds } }, select: { userId: true } });
+    for (const p of persons) {
+      await this.notifications.notify(p.userId, {
+        kind: 'roster',
+        title: 'You’re rostered',
+        body: `${role} on ${date} — published to your shifts.`,
+        link: '/dashboard/work?tab=shifts',
+      });
+    }
   }
 
   // ---- internals -----------------------------------------------------------

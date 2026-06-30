@@ -8,7 +8,13 @@ import {
   ConfigTermSchema,
   ModuleToggleSchema,
   PlannerAssignSchema,
+  PlannerCascadeSchema,
+  PlannerCopySchema,
+  PlannerFromTemplateSchema,
+  PlannerPublishRangeSchema,
+  PlannerRepeatSchema,
   PlannerRespondSchema,
+  RosterTemplateInputSchema,
   StaffingRequirementInputSchema,
   StaffingRequirementUpdateSchema,
   type ApplyTemplateData,
@@ -19,7 +25,13 @@ import {
   type ConfigTermData,
   type ModuleToggleData,
   type PlannerAssignData,
+  type PlannerCascadeData,
+  type PlannerCopyData,
+  type PlannerFromTemplateData,
+  type PlannerPublishRangeData,
+  type PlannerRepeatData,
   type PlannerRespondData,
+  type RosterTemplateInputData,
   type StaffingRequirementInputData,
   type StaffingRequirementUpdateData,
 } from '@workarmy/validation';
@@ -122,6 +134,25 @@ export class PlannerController {
     return this.config.removeField(user.sub, key);
   }
 
+  // ---- Templates (saved shift templates) ----
+  @Get('planner/templates')
+  listTemplates(@CurrentUser() user: { sub: string }) {
+    return this.planner.listTemplates(user.sub);
+  }
+
+  @Post('planner/templates')
+  createTemplate(
+    @CurrentUser() user: { sub: string },
+    @Body(new ZodValidationPipe(RosterTemplateInputSchema)) body: RosterTemplateInputData,
+  ) {
+    return this.planner.createTemplate(user.sub, body);
+  }
+
+  @Delete('planner/templates/:id')
+  removeTemplate(@CurrentUser() user: { sub: string }, @Param('id') id: string) {
+    return this.planner.removeTemplate(user.sub, id);
+  }
+
   // ---- Requirements (demand) ----
   @Get('planner/requirements')
   listRequirements(
@@ -137,6 +168,22 @@ export class PlannerController {
     @Body(new ZodValidationPipe(StaffingRequirementInputSchema)) body: StaffingRequirementInputData,
   ) {
     return this.planner.create(user.sub, body);
+  }
+
+  @Post('planner/requirements/from-template')
+  fromTemplate(
+    @CurrentUser() user: { sub: string },
+    @Body(new ZodValidationPipe(PlannerFromTemplateSchema)) body: PlannerFromTemplateData,
+  ) {
+    return this.planner.fromTemplate(user.sub, body);
+  }
+
+  @Post('planner/requirements/copy')
+  copy(
+    @CurrentUser() user: { sub: string },
+    @Body(new ZodValidationPipe(PlannerCopySchema)) body: PlannerCopyData,
+  ) {
+    return this.planner.copy(user.sub, body);
   }
 
   @Patch('planner/requirements/:id')
@@ -174,6 +221,47 @@ export class PlannerController {
   @Post('planner/requirements/:id/auto-fill')
   autoFill(@CurrentUser() user: { sub: string }, @Param('id') id: string) {
     return this.planner.autoFill(user.sub, id);
+  }
+
+  @Post('planner/requirements/:id/publish')
+  publish(@CurrentUser() user: { sub: string }, @Param('id') id: string) {
+    return this.planner.publish(user.sub, id);
+  }
+
+  @Post('planner/requirements/:id/repeat')
+  repeat(
+    @CurrentUser() user: { sub: string },
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(PlannerRepeatSchema)) body: PlannerRepeatData,
+  ) {
+    return this.planner.repeat(user.sub, id, body);
+  }
+
+  @Post('planner/requirements/:id/cascade')
+  cascade(
+    @CurrentUser() user: { sub: string },
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(PlannerCascadeSchema)) body: PlannerCascadeData,
+  ) {
+    return this.planner.cascade(user.sub, id, body.channels);
+  }
+
+  @Post('planner/requirements/:id/claim')
+  claim(@CurrentUser() user: { sub: string }, @Param('id') id: string) {
+    return this.planner.claim(user.sub, id);
+  }
+
+  @Get('planner/open-shifts')
+  openShifts(@CurrentUser() user: { sub: string }, @Query() query: { from?: string; to?: string }) {
+    return this.planner.openShifts(user.sub, { from: query.from, to: query.to });
+  }
+
+  @Post('planner/publish')
+  publishRange(
+    @CurrentUser() user: { sub: string },
+    @Body(new ZodValidationPipe(PlannerPublishRangeSchema)) body: PlannerPublishRangeData,
+  ) {
+    return this.planner.publishRange(user.sub, body.from, body.to);
   }
 
   // ---- Assignments ----

@@ -4,9 +4,11 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type {
+  OpenShift,
   PlannerSummary,
   ResolvedConfig,
   RosterSource,
+  RosterTemplateView,
   StaffingRequirementView,
   WhosTurningUpDay,
 } from '@workarmy/types';
@@ -50,6 +52,11 @@ const TABS: { key: Tab; label: string }[] = [
 function dayLabel(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
   return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function nextDay(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 export function RosterSection() {
@@ -110,6 +117,8 @@ export function RosterSection() {
 function PlannerTab({ config }: { config: ResolvedConfig | null }) {
   const [reqs, setReqs] = useState<StaffingRequirementView[]>([]);
   const [summary, setSummary] = useState<PlannerSummary | null>(null);
+  const [openShifts, setOpenShifts] = useState<OpenShift[]>([]);
+  const [templates, setTemplates] = useState<RosterTemplateView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -129,9 +138,16 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
   const clientLabel = config?.terminology.client ?? 'Client';
 
   async function load() {
-    const [r, s] = await Promise.all([api.planner.requirements.list(), api.planner.summary()]);
+    const [r, s, o, t] = await Promise.all([
+      api.planner.requirements.list(),
+      api.planner.summary(),
+      api.planner.openShifts(),
+      api.planner.templates.list(),
+    ]);
     setReqs(r);
     setSummary(s);
+    setOpenShifts(o);
+    setTemplates(t);
   }
 
   useEffect(() => {
@@ -255,13 +271,60 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
           <Field id="reqClient" label={clientLabel}>
             <Input id="reqClient" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
           </Field>
-          <div className="lg:col-span-4">
+          <div className="flex flex-wrap gap-2 lg:col-span-4">
             <Button type="submit" loading={busy}>
               + Create staffing requirement
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() =>
+                act(async () => {
+                  if (!form.role.trim()) {
+                    setError('Enter a role to save as a template.');
+                    return;
+                  }
+                  await api.planner.templates.create({
+                    name: form.role,
+                    role: form.role,
+                    category: form.category || config?.categories[0]?.key,
+                    startTime: form.startTime,
+                    endTime: form.endTime,
+                    requiredCount: Number(form.requiredCount) || 1,
+                  });
+                })
+              }
+            >
+              Save as template
             </Button>
           </div>
         </form>
       </Card>
+
+      {templates.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[#64748B]">Templates:</span>
+          {templates.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() =>
+                act(async () => {
+                  if (!form.date) {
+                    setError('Pick a date in the form first.');
+                    return;
+                  }
+                  await api.planner.requirements.fromTemplate({ templateId: t.id, date: form.date });
+                })
+              }
+              className="rounded-full border border-[#E5E7EB] px-2.5 py-1 text-xs text-[#1E293B] hover:border-[color:var(--accent)]"
+              title={`${t.startTime ?? ''}–${t.endTime ?? ''}`}
+            >
+              + {t.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {byDate.length === 0 ? (
         <Card className="p-8 text-center text-sm text-[#94A3B8]">
@@ -270,7 +333,17 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
       ) : (
         byDate.map(([date, dayReqs]) => (
           <div key={date} className="space-y-2">
-            <p className="text-sm font-semibold text-[#1E293B]">{dayLabel(date)}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-[#1E293B]">{dayLabel(date)}</p>
+              <button
+                type="button"
+                onClick={() => act(() => api.planner.requirements.copy({ fromDate: date, toDate: nextDay(date) }))}
+                className="text-xs font-medium"
+                style={{ color: 'var(--accent)' }}
+              >
+                ⧉ Duplicate day
+              </button>
+            </div>
             {dayReqs.map((r) => (
               <Card key={r.id} className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -302,6 +375,23 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
                     <Button size="sm" onClick={() => setAssignReq(r)}>
                       Assign staff
                     </Button>
+                    {r.status === 'PUBLISHED' ? (
+                      <>
+                        <span className="self-center rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-medium text-[#166534]">Published</span>
+                        {r.vacant > 0 ? (
+                          <Button size="sm" variant="ghost" onClick={() => act(() => api.planner.requirements.cascade(r.id))}>
+                            📡 Cascade
+                          </Button>
+                        ) : null}
+                      </>
+                    ) : (
+                      <Button size="sm" onClick={() => act(() => api.planner.requirements.publish(r.id))}>
+                        Publish &amp; notify
+                      </Button>
+                    )}
+                    <button type="button" title="Repeat weekly ×4" aria-label="Repeat weekly" className="text-[#94A3B8] hover:text-[color:var(--accent)]" onClick={() => act(() => api.planner.requirements.repeat(r.id, { pattern: 'WEEKLY', count: 4 }))}>
+                      <Icon name="repeat" size={15} />
+                    </button>
                     <button type="button" aria-label="Delete" className="text-[#94A3B8] hover:text-[#B91C1C]" onClick={() => act(() => api.planner.requirements.remove(r.id))}>
                       <Icon name="trash" size={15} />
                     </button>
@@ -343,9 +433,31 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
           </div>
         ))
       )}
+      {openShifts.length > 0 ? (
+        <Card className="p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Icon name="bell" size={16} style={{ color: 'var(--accent)' }} />
+            <p className="font-medium text-[#1E293B]">Open-Shift Board</p>
+            <span className="rounded-full bg-[#FEE2E2] px-2 py-0.5 text-xs font-medium text-[#991B1B]">{openShifts.length} open</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {openShifts.map((o) => (
+              <div key={o.requirementId} className="rounded-xl border border-[#E5E7EB] p-3">
+                <p className="text-sm font-semibold text-[#1E293B]">{o.role}</p>
+                <p className="text-xs text-[#64748B]">
+                  {dayLabel(o.date)} · {o.startTime}–{o.endTime}
+                  {o.locationText ? ` · ${o.locationText}` : ''}
+                </p>
+                <p className="mt-1 text-xs font-medium text-[#991B1B]">⚡ {o.vacant} vacant — cascaded to your pool</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
       <p className="text-xs text-[#94A3B8]">
-        Demand-first: enter what you need, then fill it. The assign drawer ranks available workers by best match, flags
-        conflicts, and lets you auto-fill — workers accept from their own app (Accept/Decline here simulates that).
+        Demand-first: enter what you need, then fill it. Publish notifies assigned workers; unfilled vacancies cascade to the
+        Open-Shift board and your on-call pool. Workers accept from their own app (Accept/Decline here simulates that).
       </p>
 
       {assignReq ? (
