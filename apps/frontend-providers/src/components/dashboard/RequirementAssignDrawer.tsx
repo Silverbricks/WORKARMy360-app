@@ -46,19 +46,21 @@ export function RequirementAssignDrawer({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [assigned, setAssigned] = useState(requirement.assigned);
+  // Assignees outside the candidate pool (NEARBY claimants / deactivated workers),
+  // measured once at open so the live count = in-pool assigned + this constant.
+  const [extra, setExtra] = useState(0);
   const [sel, setSel] = useState<Set<string>>(new Set());
-  const [activeSources, setActiveSources] = useState<Set<RosterSource>>(new Set(['COMPANY', 'CONTRACTOR', 'AGENCY', 'SOLE_TRADER']));
+  const [activeSources, setActiveSources] = useState<Set<RosterSource>>(new Set(['COMPANY', 'CONTRACTOR', 'AGENCY', 'SOLE_TRADER', 'NEARBY']));
   const [availableOnly, setAvailableOnly] = useState(true);
   const [search, setSearch] = useState('');
   const [overlap, setOverlap] = useState<PlannerCandidate[] | null>(null);
 
+  const assigned = cands.filter((c) => c.assigned).length + extra;
   const vacant = Math.max(0, requirement.requiredCount - assigned);
 
   async function load() {
     const data = await api.planner.requirements.candidates(requirement.id);
     setCands(data);
-    setAssigned(data.filter((c) => c.assigned).length || requirement.assigned);
   }
 
   useEffect(() => {
@@ -66,7 +68,10 @@ export function RequirementAssignDrawer({
     (async () => {
       try {
         const data = await api.planner.requirements.candidates(requirement.id);
-        if (active) setCands(data);
+        if (active) {
+          setCands(data);
+          setExtra(Math.max(0, requirement.assigned - data.filter((c) => c.assigned).length));
+        }
       } catch (e) {
         if (active) setError(errorMessage(e));
       } finally {

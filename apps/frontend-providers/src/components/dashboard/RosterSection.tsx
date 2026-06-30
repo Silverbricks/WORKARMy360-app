@@ -149,6 +149,7 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
 
   const locLabel = config?.terminology.location ?? 'Location';
   const clientLabel = config?.terminology.client ?? 'Client';
+  const marketplaceOn = !!config?.modules.find((m) => m.key === 'marketplace' && m.enabled);
 
   async function load() {
     const [r, s, o, t] = await Promise.all([
@@ -391,7 +392,7 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
                     {r.status === 'PUBLISHED' ? (
                       <>
                         <span className="self-center rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-medium text-[#166534]">Published</span>
-                        {r.vacant > 0 ? (
+                        {r.vacant > 0 && marketplaceOn ? (
                           <Button size="sm" variant="ghost" onClick={() => act(() => api.planner.requirements.cascade(r.id))}>
                             📡 Cascade
                           </Button>

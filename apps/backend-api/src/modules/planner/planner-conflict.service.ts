@@ -10,9 +10,28 @@ function toMin(hhmm: string): number {
   return h * 60 + m;
 }
 
-/** Do two HH:MM intervals overlap (non-wrapping, within a day)? */
+/**
+ * The minute segments an HH:MM shift occupies within a single calendar day.
+ * An overnight shift (end <= start, e.g. 21:00–07:30) splits into the evening
+ * segment [start,1440) and the next-morning segment [0,end) — both belong to the
+ * shift's start date, which is how busy intervals are anchored.
+ */
+function toSegments(start: string, end: string): Array<[number, number]> {
+  const s = toMin(start);
+  const e = toMin(end);
+  if (e > s) return [[s, e]];
+  if (e === s) return [[s, s + 1]]; // zero-length guard
+  return [
+    [s, 1440],
+    [0, e],
+  ];
+}
+
+/** Do two HH:MM intervals overlap? Correct for overnight (wrapping) shifts. */
 export function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
-  return toMin(aStart) < toMin(bEnd) && toMin(bStart) < toMin(aEnd);
+  const a = toSegments(aStart, aEnd);
+  const b = toSegments(bStart, bEnd);
+  return a.some(([as, ae]) => b.some(([bs, be]) => as < be && bs < ae));
 }
 
 /** Best-effort name match (no LeaveRequest.personId FK yet). */
