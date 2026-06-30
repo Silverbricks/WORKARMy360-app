@@ -7,7 +7,7 @@ import { FindStaffSection } from './FindStaffSection';
 import { StaffSection } from './StaffSection';
 import { MyWorkforceSection } from './MyWorkforceSection';
 import { TeamsSection } from './TeamsSection';
-import { RostersSection } from './RostersSection';
+import { RosterSection } from './RosterSection';
 import { UrgentBulkSection } from './UrgentBulkSection';
 import { StaffRequestFormSection } from './StaffRequestFormSection';
 import { QuickDispatchSection } from './QuickDispatchSection';
@@ -41,7 +41,7 @@ export function DashboardSection({ slug }: { slug: string }) {
     case 'teams':
       return <TeamsSection />;
     case 'rosters':
-      return <RostersSection />;
+      return <RosterSection />;
     case 'staffing':
       return <UrgentBulkSection />;
     case 'staff-request':
