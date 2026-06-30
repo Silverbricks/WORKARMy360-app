@@ -22,5 +22,6 @@ export * from './endpoints/operations';
 export * from './endpoints/network';
 export * from './endpoints/accounts';
 export * from './endpoints/business';
+export * from './endpoints/planner';
 export * from './endpoints/admin';
 export * from './client';

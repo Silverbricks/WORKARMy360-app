@@ -12,12 +12,10 @@ async function bootstrap() {
   app.use(helmet());
   app.use(cookieParser());
   app.setGlobalPrefix(env.API_GLOBAL_PREFIX);
-  // CORS_ORIGINS is a comma-separated list — split it so each origin is matched
-  // individually (a single joined string never matches a real Origin header).
-  const corsOrigins = env.CORS_ORIGINS.split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-  app.enableCors({ origin: corsOrigins, credentials: true });
+  // env parses CORS_ORIGINS (comma-separated) into a trimmed string[], so each
+  // origin is matched individually (a single joined string never matches a real
+  // Origin header). Pass the array straight through.
+  app.enableCors({ origin: env.CORS_ORIGINS, credentials: true });
   app.useGlobalFilters(new HttpExceptionFilter());
 
   // Railway / Cloud Run inject PORT; fall back to the configured API_PORT locally.

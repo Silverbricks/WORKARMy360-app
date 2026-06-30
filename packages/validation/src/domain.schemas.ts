@@ -633,3 +633,118 @@ export type PaymentMethodData = z.infer<typeof PaymentMethodSchema>;
 export type BusinessCardData = z.infer<typeof BusinessCardSchema>;
 export type RequirementInputData = z.infer<typeof RequirementInputSchema>;
 export type OrgAdminInputData = z.infer<typeof OrgAdminInputSchema>;
+
+// --- Workforce Platform Builder: config + roster engine --------------------
+const hhmm = z.string().trim().regex(/^\d{2}:\d{2}$/, 'Use HH:MM');
+const isoDate = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a valid date');
+const moneyInt = z.coerce.number().int().min(0).max(100000);
+
+// Roster Builder — config (each builder edits its own rows)
+export const ApplyTemplateSchema = z.object({ templateKey: z.string().trim().min(1).max(40) });
+export const ConfigGeneralSchema = z.object({
+  planningMode: z.enum(['demand', 'staff']).optional(),
+  weekStartsMonday: z.coerce.boolean().optional(),
+  name: optionalText(120),
+});
+export const ModuleToggleSchema = z.object({
+  key: z.string().trim().min(1).max(40),
+  enabled: z.coerce.boolean().optional(),
+  license: z.enum(['DISABLED', 'TRIAL', 'SUBSCRIPTION', 'ENABLED', 'ENTERPRISE']).optional(),
+});
+export const ConfigTermSchema = z.object({
+  term: z.string().trim().min(1).max(40),
+  label: z.string().trim().min(1).max(60),
+});
+export const ConfigCategorySchema = z.object({
+  key: z.string().trim().min(1).max(40),
+  label: z.string().trim().min(1).max(60),
+  color: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, 'Use a hex colour'),
+  kind: z.enum(['SHIFT', 'STATUS']).optional(),
+});
+export const ConfigGateSchema = z.object({
+  key: z.string().trim().min(1).max(40),
+  label: z.string().trim().min(1).max(80),
+  credentialType: z.string().trim().min(1).max(60),
+  block: z.coerce.boolean().optional(),
+});
+export const ConfigFieldSchema = z.object({
+  key: z.string().trim().min(1).max(40),
+  label: z.string().trim().min(1).max(80),
+  type: z.enum(['text', 'number', 'date', 'dropdown', 'checkbox', 'currency']).optional(),
+  options: z.array(z.string().trim().max(60)).max(50).optional(),
+  target: z.enum(['requirement', 'worker', 'shift']).optional(),
+  required: z.coerce.boolean().optional(),
+  order: z.coerce.number().int().min(0).max(999).optional(),
+});
+
+// Roster templates (saved shift templates)
+export const RosterTemplateInputSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(80),
+  category: z.string().trim().min(1).max(40).optional(),
+  role: optionalText(80),
+  startTime: hhmm.optional(),
+  endTime: hhmm.optional(),
+  siteId: z.string().uuid().optional(),
+  requiredCount: z.coerce.number().int().min(1).max(999).optional(),
+  payRate: moneyInt.optional(),
+  payUnit: optionalText(20),
+});
+
+// Demand requirements
+export const StaffingRequirementInputSchema = z.object({
+  date: isoDate,
+  startTime: hhmm,
+  endTime: hhmm,
+  role: z.string().trim().min(1, 'Role is required').max(120),
+  category: z.string().trim().min(1).max(40).optional(),
+  siteId: z.string().uuid().optional(),
+  locationText: optionalText(160),
+  client: optionalText(120),
+  payRate: moneyInt.optional(),
+  payUnit: optionalText(20),
+  requiredCount: z.coerce.number().int().min(1).max(999).optional(),
+  notes: optionalText(1000),
+  openMarketplace: z.coerce.boolean().optional(),
+  fields: z.record(z.unknown()).optional(),
+});
+export const StaffingRequirementUpdateSchema = StaffingRequirementInputSchema.partial();
+
+export const PlannerAssignSchema = z.object({
+  waId: z.string().trim().min(3).max(20).optional(),
+  personId: z.string().uuid().optional(),
+  source: z.enum(['COMPANY', 'CONTRACTOR', 'AGENCY', 'SOLE_TRADER', 'NEARBY']).optional(),
+});
+export const PlannerRespondSchema = z.object({
+  response: z.enum(['ACCEPTED', 'DECLINED', 'CONFIRMED']),
+});
+export const PlannerCopySchema = z.object({ fromDate: isoDate, toDate: isoDate });
+export const PlannerRepeatSchema = z.object({
+  pattern: z.enum(['DAILY', 'WEEKLY', 'FORTNIGHTLY']),
+  count: z.coerce.number().int().min(1).max(52),
+});
+export const PlannerFromTemplateSchema = z.object({
+  templateId: z.string().uuid(),
+  date: isoDate,
+});
+export const PlannerPublishRangeSchema = z.object({ from: isoDate, to: isoDate });
+export const PlannerCascadeSchema = z.object({
+  channels: z.array(z.enum(['ON_CALL', 'CONTRACTORS', 'AGENCIES', 'NETWORK'])).optional(),
+});
+
+export type ApplyTemplateData = z.infer<typeof ApplyTemplateSchema>;
+export type ConfigGeneralData = z.infer<typeof ConfigGeneralSchema>;
+export type ModuleToggleData = z.infer<typeof ModuleToggleSchema>;
+export type ConfigTermData = z.infer<typeof ConfigTermSchema>;
+export type ConfigCategoryData = z.infer<typeof ConfigCategorySchema>;
+export type ConfigGateData = z.infer<typeof ConfigGateSchema>;
+export type ConfigFieldData = z.infer<typeof ConfigFieldSchema>;
+export type RosterTemplateInputData = z.infer<typeof RosterTemplateInputSchema>;
+export type StaffingRequirementInputData = z.infer<typeof StaffingRequirementInputSchema>;
+export type StaffingRequirementUpdateData = z.infer<typeof StaffingRequirementUpdateSchema>;
+export type PlannerAssignData = z.infer<typeof PlannerAssignSchema>;
+export type PlannerRespondData = z.infer<typeof PlannerRespondSchema>;
+export type PlannerCopyData = z.infer<typeof PlannerCopySchema>;
+export type PlannerRepeatData = z.infer<typeof PlannerRepeatSchema>;
+export type PlannerFromTemplateData = z.infer<typeof PlannerFromTemplateSchema>;
+export type PlannerPublishRangeData = z.infer<typeof PlannerPublishRangeSchema>;
+export type PlannerCascadeData = z.infer<typeof PlannerCascadeSchema>;

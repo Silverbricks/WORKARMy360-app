@@ -30,6 +30,8 @@ import { OperationsModule } from './modules/operations/operations.module';
 import { NetworkModule } from './modules/network/network.module';
 import { AccountsModule } from './modules/accounts/accounts.module';
 import { BusinessModule } from './modules/business/business.module';
+import { PlatformModule } from './modules/platform/platform.module';
+import { PlannerModule } from './modules/planner/planner.module';
 import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
@@ -63,6 +65,8 @@ import { AdminModule } from './modules/admin/admin.module';
     NetworkModule,
     AccountsModule,
     BusinessModule,
+    PlatformModule,
+    PlannerModule,
     AdminModule,
   ],
   providers: [

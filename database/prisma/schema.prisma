@@ -66,6 +66,9 @@ enum AuditAction {
   ORG_VERIFIED
   ORG_REJECTED
   DOCUMENT_UPLOADED
+  CONFIG_UPDATED
+  REQUIREMENT_PUBLISHED
+  REQUIREMENT_CASCADED
 }
 
 /// Platform staff role (admins are auth users with no provider org).
@@ -244,16 +247,16 @@ model Person {
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  profile        PersonProfile?
-  resume         Resume?
-  experiences    WorkExperience[]
-  orgMemberships OrgMember[]
-  applications   JobApplication[]
-  savedJobs      SavedJob[]
-  documents      Document[]
-  credentials    Credential[]
-  verifications  Verification[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile          PersonProfile?
+  resume           Resume?
+  experiences      WorkExperience[]
+  orgMemberships   OrgMember[]
+  applications     JobApplication[]
+  savedJobs        SavedJob[]
+  documents        Document[]
+  credentials      Credential[]
+  verifications    Verification[]
   assignments      ShiftAssignment[]
   timesheets       Timesheet[]
   payslips         Payslip[]
@@ -276,39 +279,39 @@ model Person {
 /// verifications). Dates are stored as ISO "YYYY-MM-DD" strings for simple,
 /// timezone-safe form round-trips (mirrors OrgProfile's all-string approach).
 model PersonProfile {
-  personId       String   @id @map("person_id") @db.Uuid
+  personId              String   @id @map("person_id") @db.Uuid
   // personal
-  photoUrl        String?  @map("photo_url")
-  photoDocumentId String?  @map("photo_document_id") // uploaded profile photo (Document id)
-  dateOfBirth    String?  @map("date_of_birth")
-  gender         String?
-  nationality    String?
-  addressLine    String?  @map("address_line")
-  suburb         String?
-  state          String?
-  postcode       String?
-  emergencyName  String?  @map("emergency_name")
-  emergencyPhone String?  @map("emergency_phone")
+  photoUrl              String?  @map("photo_url")
+  photoDocumentId       String?  @map("photo_document_id") // uploaded profile photo (Document id)
+  dateOfBirth           String?  @map("date_of_birth")
+  gender                String?
+  nationality           String?
+  addressLine           String?  @map("address_line")
+  suburb                String?
+  state                 String?
+  postcode              String?
+  emergencyName         String?  @map("emergency_name")
+  emergencyPhone        String?  @map("emergency_phone")
   // professional
-  headline       String? // professional summary / headline
-  about          String?
-  skills         String? // comma-separated for now
-  industries     String?
-  languages      String?
+  headline              String? // professional summary / headline
+  about                 String?
+  skills                String? // comma-separated for now
+  industries            String?
+  languages             String?
   // availability
-  availability   String? // full-time / part-time / casual / seasonal / contract
-  availableDays  String?  @map("available_days")
-  availableHours String?  @map("available_hours")
+  availability          String? // full-time / part-time / casual / seasonal / contract
+  availableDays         String?  @map("available_days")
+  availableHours        String?  @map("available_hours")
   // hire-me status
-  hireStatus     String?  @map("hire_status") // AVAILABLE_NOW / AVAILABLE_SOON / OPEN / NOT_LOOKING
+  hireStatus            String?  @map("hire_status") // AVAILABLE_NOW / AVAILABLE_SOON / OPEN / NOT_LOOKING
   // job preferences (drive matching — NOT completeness, Principle 4)
-  seekerCategory      String?  @map("seeker_category")
-  userTypes           String?  @map("user_types") // csv: Permanent,Casual,Seasonal,...
-  preferredLocations  String?  @map("preferred_locations") // csv, max 3
-  preferredIndustries String?  @map("preferred_industries") // csv
-  preferredJobTypes   String?  @map("preferred_job_types") // csv
-  preferredPayMin     Int?     @map("preferred_pay_min")
-  willingToRelocate   Boolean  @default(false) @map("willing_to_relocate")
+  seekerCategory        String?  @map("seeker_category")
+  userTypes             String?  @map("user_types") // csv: Permanent,Casual,Seasonal,...
+  preferredLocations    String?  @map("preferred_locations") // csv, max 3
+  preferredIndustries   String?  @map("preferred_industries") // csv
+  preferredJobTypes     String?  @map("preferred_job_types") // csv
+  preferredPayMin       Int?     @map("preferred_pay_min")
+  willingToRelocate     Boolean  @default(false) @map("willing_to_relocate")
   // "Get Job Faster" availability card (worker-built public card)
   cardQualification     String?  @map("card_qualification")
   cardWorkType          String?  @map("card_work_type") // hourly / weekly / contract / any
@@ -316,8 +319,8 @@ model PersonProfile {
   cardUrgentShifts      Boolean  @default(false) @map("card_urgent_shifts")
   cardContactPreference String?  @map("card_contact_preference") // in_app / phone / email
   cardPublished         Boolean  @default(false) @map("card_published")
-  completeness   Int      @default(0)
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  completeness          Int      @default(0)
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
@@ -379,16 +382,16 @@ model WorkExperience {
 // --- organisations (neutral stub for the provider flow, Sprint 2) ----------
 
 model Organisation {
-  id          String      @id @default(uuid()) @db.Uuid
-  waId        String      @unique @map("wa_id")
-  accountType AccountType @map("account_type") // EMPLOYER / FARM / CONTRACTOR / ...
-  name        String
+  id                 String             @id @default(uuid()) @db.Uuid
+  waId               String             @unique @map("wa_id")
+  accountType        AccountType        @map("account_type") // EMPLOYER / FARM / CONTRACTOR / ...
+  name               String
   // Provider verification gate — APPROVED unlocks posting jobs / hiring / staff
   // requests. Set on creation (ORG_VERIFICATION_REQUIRED) and by admin review.
   verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
   verifiedAt         DateTime?          @map("verified_at")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
 
   members       OrgMember[]
   profile       OrgProfile?
@@ -552,19 +555,19 @@ model Document {
 }
 
 model Credential {
-  id            String    @id @default(uuid()) @db.Uuid
-  orgId         String?   @map("org_id") @db.Uuid
-  personId      String?   @map("person_id") @db.Uuid
-  type          String // licence / insurance / abn / right-to-work / police-check
-  identifier    String?
-  issuer        String?
-  expiresAt     DateTime? @map("expires_at")
-  documentId    String?   @map("document_id") @db.Uuid
-  createdAt     DateTime  @default(now()) @map("created_at")
+  id         String    @id @default(uuid()) @db.Uuid
+  orgId      String?   @map("org_id") @db.Uuid
+  personId   String?   @map("person_id") @db.Uuid
+  type       String // licence / insurance / abn / right-to-work / police-check
+  identifier String?
+  issuer     String?
+  expiresAt  DateTime? @map("expires_at")
+  documentId String?   @map("document_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
 
-  organisation Organisation?  @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  person       Person?        @relation(fields: [personId], references: [id], onDelete: Cascade)
-  document     Document?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  organisation  Organisation?  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  person        Person?        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  document      Document?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
   verifications Verification[]
 
   @@index([orgId])
@@ -642,8 +645,8 @@ model ShiftAssignment {
   status    AssignmentStatus @default(ASSIGNED)
   createdAt DateTime         @default(now()) @map("created_at")
 
-  shift        Shift             @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  person       Person            @relation(fields: [personId], references: [id], onDelete: Cascade)
+  shift        Shift              @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  person       Person             @relation(fields: [personId], references: [id], onDelete: Cascade)
   attendance   Attendance?
   swapRequests ShiftSwapRequest[]
 
@@ -653,14 +656,14 @@ model ShiftAssignment {
 }
 
 model Attendance {
-  id          String    @id @default(uuid()) @db.Uuid
-  assignmentId String   @unique @map("assignment_id") @db.Uuid
-  clockInAt   DateTime? @map("clock_in_at")
-  clockOutAt  DateTime? @map("clock_out_at")
-  clockInLat  Float?    @map("clock_in_lat")
-  clockInLng  Float?    @map("clock_in_lng")
-  clockOutLat Float?    @map("clock_out_lat")
-  clockOutLng Float?    @map("clock_out_lng")
+  id           String    @id @default(uuid()) @db.Uuid
+  assignmentId String    @unique @map("assignment_id") @db.Uuid
+  clockInAt    DateTime? @map("clock_in_at")
+  clockOutAt   DateTime? @map("clock_out_at")
+  clockInLat   Float?    @map("clock_in_lat")
+  clockInLng   Float?    @map("clock_in_lng")
+  clockOutLat  Float?    @map("clock_out_lat")
+  clockOutLng  Float?    @map("clock_out_lng")
 
   assignment ShiftAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
@@ -751,12 +754,12 @@ model KnowledgeArticle {
 }
 
 model Group {
-  id            String      @id @default(uuid()) @db.Uuid
-  kind          GroupKind   @default(POOL)
+  id            String    @id @default(uuid()) @db.Uuid
+  kind          GroupKind @default(POOL)
   name          String
   description   String?
-  ownerPersonId String      @map("owner_person_id") @db.Uuid
-  createdAt     DateTime    @default(now()) @map("created_at")
+  ownerPersonId String    @map("owner_person_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   members GroupMember[]
 
@@ -1086,17 +1089,19 @@ model AuditLog {
 /// A worker linked to an org's roster (on-call / urgent flags). Distinct from
 /// per-shift ShiftAssignment — this is the standing relationship.
 model OrgWorker {
-  id               String   @id @default(uuid()) @db.Uuid
-  orgId            String   @map("org_id") @db.Uuid
-  personId         String   @map("person_id") @db.Uuid
-  staffType        String?  @map("staff_type")
-  onCall           Boolean  @default(false) @map("on_call")
-  urgentAvailable  Boolean  @default(false) @map("urgent_available")
-  availabilityNote String?  @map("availability_note")
-  teamId           String?  @map("team_id") @db.Uuid
-  active           Boolean  @default(true)
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  id               String       @id @default(uuid()) @db.Uuid
+  orgId            String       @map("org_id") @db.Uuid
+  personId         String       @map("person_id") @db.Uuid
+  staffType        String?      @map("staff_type")
+  // Roster source badge: own staff vs engaged contractor/agency/sole trader.
+  source           RosterSource @default(COMPANY)
+  onCall           Boolean      @default(false) @map("on_call")
+  urgentAvailable  Boolean      @default(false) @map("urgent_available")
+  availabilityNote String?      @map("availability_note")
+  teamId           String?      @map("team_id") @db.Uuid
+  active           Boolean      @default(true)
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
 
   organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   person       Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
@@ -1199,49 +1204,49 @@ enum DispatchTargetState {
 /// A structured bulk/urgent staff request sent to WorkArmy Super Admin and
 /// optionally selected contractors/agencies.
 model StaffRequest {
-  id              String              @id @default(uuid()) @db.Uuid
-  orgId           String              @map("org_id") @db.Uuid
-  type            StaffRequestType    @default(BULK_CREW)
-  urgency         StaffRequestUrgency @default(NORMAL)
-  status          StaffRequestStatus  @default(SENT)
-  roleTitle       String              @map("role_title")
-  industry        String?
-  description     String?
-  employmentType  String?             @map("employment_type")
-  site            String?
-  siteAddress     String?             @map("site_address")
-  suburb          String?
-  state           String?
-  startDate       String?             @map("start_date") // ISO date
-  shiftType       String?             @map("shift_type")
-  startTime       String?             @map("start_time")
-  finishTime      String?             @map("finish_time")
-  headcountTotal  Int                 @default(1) @map("headcount_total")
-  headcountMale   Int?                @map("headcount_male")
-  headcountFemale Int?                @map("headcount_female")
-  headcountAny    Int?                @map("headcount_any")
-  days            String? // csv
-  skills          String? // csv
-  licences        String? // csv
-  experience      String?
-  english         String?
-  ppe             String? // csv
-  ppeSupplied     Boolean             @default(false) @map("ppe_supplied")
-  reportToName    String?             @map("report_to_name")
-  reportToRole    String?             @map("report_to_role")
-  reportToMobile  String?             @map("report_to_mobile")
-  reportToLocation String?            @map("report_to_location")
-  siteNotes       String?             @map("site_notes")
-  payRate         String?             @map("pay_rate")
-  payBasis        String?             @map("pay_basis")
-  award           String?
-  transport       Boolean             @default(false)
-  accommodation   Boolean             @default(false)
-  meals           Boolean             @default(false)
-  additionalNotes String?             @map("additional_notes")
-  sendToSuperAdmin Boolean            @default(true) @map("send_to_super_admin")
-  declarationAcceptedAt DateTime?     @map("declaration_accepted_at")
-  createdAt       DateTime            @default(now()) @map("created_at")
+  id                    String              @id @default(uuid()) @db.Uuid
+  orgId                 String              @map("org_id") @db.Uuid
+  type                  StaffRequestType    @default(BULK_CREW)
+  urgency               StaffRequestUrgency @default(NORMAL)
+  status                StaffRequestStatus  @default(SENT)
+  roleTitle             String              @map("role_title")
+  industry              String?
+  description           String?
+  employmentType        String?             @map("employment_type")
+  site                  String?
+  siteAddress           String?             @map("site_address")
+  suburb                String?
+  state                 String?
+  startDate             String?             @map("start_date") // ISO date
+  shiftType             String?             @map("shift_type")
+  startTime             String?             @map("start_time")
+  finishTime            String?             @map("finish_time")
+  headcountTotal        Int                 @default(1) @map("headcount_total")
+  headcountMale         Int?                @map("headcount_male")
+  headcountFemale       Int?                @map("headcount_female")
+  headcountAny          Int?                @map("headcount_any")
+  days                  String? // csv
+  skills                String? // csv
+  licences              String? // csv
+  experience            String?
+  english               String?
+  ppe                   String? // csv
+  ppeSupplied           Boolean             @default(false) @map("ppe_supplied")
+  reportToName          String?             @map("report_to_name")
+  reportToRole          String?             @map("report_to_role")
+  reportToMobile        String?             @map("report_to_mobile")
+  reportToLocation      String?             @map("report_to_location")
+  siteNotes             String?             @map("site_notes")
+  payRate               String?             @map("pay_rate")
+  payBasis              String?             @map("pay_basis")
+  award                 String?
+  transport             Boolean             @default(false)
+  accommodation         Boolean             @default(false)
+  meals                 Boolean             @default(false)
+  additionalNotes       String?             @map("additional_notes")
+  sendToSuperAdmin      Boolean             @default(true) @map("send_to_super_admin")
+  declarationAcceptedAt DateTime?           @map("declaration_accepted_at")
+  createdAt             DateTime            @default(now()) @map("created_at")
 
   organisation Organisation            @relation(fields: [orgId], references: [id], onDelete: Cascade)
   recipients   StaffRequestRecipient[]
@@ -1706,4 +1711,252 @@ model Requirement {
 
   @@index([orgId])
   @@map("requirements")
+}
+
+// ===========================================================================
+//  WORKFORCE PLATFORM BUILDER — config substrate + generic Roster engine
+//  Metadata-driven: NO industry/category enums. Industries are DATA
+//  (INDUSTRY_TEMPLATES) written into the per-builder config tables below; the
+//  runtime resolves config and renders generically. Every config table carries
+//  the scope/version/status seams for org→client→site→dept→team inheritance
+//  (v1 uses ORG scope only). Leaf tables use a plain org_id scalar (no relation),
+//  mirroring the Business dashboard tables.
+// ===========================================================================
+
+enum RosterScope {
+  ORG
+  CLIENT
+  SITE
+  DEPARTMENT
+  TEAM
+}
+
+enum ConfigStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ModuleLicense {
+  DISABLED
+  TRIAL
+  SUBSCRIPTION
+  ENABLED
+  ENTERPRISE
+}
+
+/// Worker source badge (own staff vs engaged labour). A core staffing concept,
+/// not industry-specific — safe as an engine enum.
+enum RosterSource {
+  COMPANY
+  CONTRACTOR
+  AGENCY
+  SOLE_TRADER
+  NEARBY
+}
+
+/// Demand lifecycle for a StaffingRequirement (distinct from the Business
+/// dashboard's RequirementStatus, which is OPEN/CLOSED).
+enum StaffingRequirementStatus {
+  DRAFT
+  OPEN
+  PUBLISHED
+  FILLED
+  CLOSED
+}
+
+/// General per-scope settings (Roster Builder). One row per scope. parentId
+/// enables the inheritance the Studio adds later.
+model PlatformConfig {
+  id               String       @id @default(uuid()) @db.Uuid
+  orgId            String       @map("org_id") @db.Uuid
+  scope            RosterScope  @default(ORG)
+  scopeRefId       String?      @map("scope_ref_id") @db.Uuid
+  parentId         String?      @map("parent_id") @db.Uuid
+  status           ConfigStatus @default(PUBLISHED)
+  version          Int          @default(1)
+  name             String?
+  templateKey      String?      @map("template_key")
+  planningMode     String       @default("demand") @map("planning_mode")
+  weekStartsMonday Boolean      @default(true) @map("week_starts_monday")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  @@unique([orgId, scope, scopeRefId])
+  @@index([orgId])
+  @@map("platform_configs")
+}
+
+/// Enabled feature modules (Module Marketplace) with licence + per-module settings.
+model PlatformModule {
+  id         String        @id @default(uuid()) @db.Uuid
+  orgId      String        @map("org_id") @db.Uuid
+  scope      RosterScope   @default(ORG)
+  scopeRefId String?       @map("scope_ref_id") @db.Uuid
+  parentId   String?       @map("parent_id") @db.Uuid
+  status     ConfigStatus  @default(PUBLISHED)
+  version    Int           @default(1)
+  key        String
+  enabled    Boolean       @default(true)
+  license    ModuleLicense @default(ENABLED)
+  settings   Json?
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  @@unique([orgId, scope, scopeRefId, key])
+  @@index([orgId])
+  @@map("platform_modules")
+}
+
+/// Terminology overrides (Terminology Builder): canonical term → company label.
+model PlatformTerm {
+  id         String       @id @default(uuid()) @db.Uuid
+  orgId      String       @map("org_id") @db.Uuid
+  scope      RosterScope  @default(ORG)
+  scopeRefId String?      @map("scope_ref_id") @db.Uuid
+  parentId   String?      @map("parent_id") @db.Uuid
+  status     ConfigStatus @default(PUBLISHED)
+  version    Int          @default(1)
+  term       String
+  label      String
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@unique([orgId, scope, scopeRefId, term])
+  @@index([orgId])
+  @@map("platform_terms")
+}
+
+/// Shift/status categories + colours (Colour Builder).
+model PlatformCategory {
+  id         String       @id @default(uuid()) @db.Uuid
+  orgId      String       @map("org_id") @db.Uuid
+  scope      RosterScope  @default(ORG)
+  scopeRefId String?      @map("scope_ref_id") @db.Uuid
+  parentId   String?      @map("parent_id") @db.Uuid
+  status     ConfigStatus @default(PUBLISHED)
+  version    Int          @default(1)
+  key        String
+  label      String
+  color      String
+  kind       String       @default("SHIFT")
+  order      Int          @default(0)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@unique([orgId, scope, scopeRefId, key])
+  @@index([orgId])
+  @@map("platform_categories")
+}
+
+/// Compliance gates: which Credential types block/warn on assignment.
+model PlatformGate {
+  id             String       @id @default(uuid()) @db.Uuid
+  orgId          String       @map("org_id") @db.Uuid
+  scope          RosterScope  @default(ORG)
+  scopeRefId     String?      @map("scope_ref_id") @db.Uuid
+  parentId       String?      @map("parent_id") @db.Uuid
+  status         ConfigStatus @default(PUBLISHED)
+  version        Int          @default(1)
+  key            String
+  label          String
+  credentialType String       @map("credential_type")
+  block          Boolean      @default(false)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@unique([orgId, scope, scopeRefId, key])
+  @@index([orgId])
+  @@map("platform_gates")
+}
+
+/// Custom field definitions (Field Builder seed). target = requirement|worker|shift.
+model PlatformField {
+  id         String       @id @default(uuid()) @db.Uuid
+  orgId      String       @map("org_id") @db.Uuid
+  scope      RosterScope  @default(ORG)
+  scopeRefId String?      @map("scope_ref_id") @db.Uuid
+  parentId   String?      @map("parent_id") @db.Uuid
+  status     ConfigStatus @default(PUBLISHED)
+  version    Int          @default(1)
+  key        String
+  label      String
+  type       String       @default("text")
+  options    Json?
+  target     String       @default("requirement")
+  required   Boolean      @default(false)
+  order      Int          @default(0)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@unique([orgId, scope, scopeRefId, key])
+  @@index([orgId])
+  @@map("platform_fields")
+}
+
+/// Reusable shift/roster template (seeded by applyTemplate from INDUSTRY_TEMPLATES,
+/// then editable) — drives planner/grid quick-create.
+model RosterTemplate {
+  id            String   @id @default(uuid()) @db.Uuid
+  orgId         String   @map("org_id") @db.Uuid
+  name          String
+  category      String   @default("general")
+  role          String?
+  startTime     String?  @map("start_time")
+  endTime       String?  @map("end_time")
+  siteId        String?  @map("site_id") @db.Uuid
+  requiredCount Int      @default(1) @map("required_count")
+  payRate       Int?     @map("pay_rate")
+  payUnit       String?  @map("pay_unit")
+  templateKey   String?  @map("template_key")
+  payload       Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([orgId])
+  @@map("roster_templates")
+}
+
+/// Demand: "we need N people for this role/time/place" — first-class (not a Shift).
+model StaffingRequirement {
+  id              String                    @id @default(uuid()) @db.Uuid
+  orgId           String                    @map("org_id") @db.Uuid
+  date            String // ISO YYYY-MM-DD
+  startTime       String                    @map("start_time") // HH:MM
+  endTime         String                    @map("end_time") // HH:MM
+  role            String
+  category        String                    @default("general")
+  siteId          String?                   @map("site_id") @db.Uuid
+  locationText    String?                   @map("location_text")
+  client          String?
+  payRate         Int?                      @map("pay_rate") // dollars
+  payUnit         String?                   @map("pay_unit")
+  requiredCount   Int                       @default(1) @map("required_count")
+  status          StaffingRequirementStatus @default(DRAFT)
+  openMarketplace Boolean                   @default(false) @map("open_marketplace")
+  notes           String?
+  fields          Json? // custom-field values
+  publishedAt     DateTime?                 @map("published_at")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+
+  assignments RequirementAssignment[]
+
+  @@index([orgId, date])
+  @@map("staffing_requirements")
+}
+
+model RequirementAssignment {
+  id            String           @id @default(uuid()) @db.Uuid
+  requirementId String           @map("requirement_id") @db.Uuid
+  personId      String           @map("person_id") @db.Uuid
+  source        RosterSource     @default(COMPANY)
+  status        AssignmentStatus @default(ASSIGNED)
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  requirement StaffingRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@unique([requirementId, personId])
+  @@index([personId])
+  @@map("requirement_assignments")
 }
