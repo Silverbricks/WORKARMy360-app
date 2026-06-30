@@ -14,6 +14,7 @@ import { Alert, Button, Card, Field, Icon, Input, cn } from '@workarmy/ui';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/form';
 import { RosterBuilderDrawer } from './RosterBuilderDrawer';
+import { RequirementAssignDrawer } from './RequirementAssignDrawer';
 
 type Tab = 'planner' | 'grid' | 'turnup';
 
@@ -112,8 +113,7 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [assignTo, setAssignTo] = useState<string | null>(null);
-  const [assignWa, setAssignWa] = useState('');
+  const [assignReq, setAssignReq] = useState<StaffingRequirementView | null>(null);
   const [form, setForm] = useState({
     date: '',
     startTime: '06:00',
@@ -294,8 +294,13 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
                     >
                       {r.assigned}/{r.requiredCount} {r.vacant > 0 ? `· ${r.vacant} vacant` : '· filled'}
                     </span>
-                    <Button size="sm" variant="ghost" onClick={() => setAssignTo(assignTo === r.id ? null : r.id)}>
-                      + Assign
+                    {r.vacant > 0 ? (
+                      <Button size="sm" variant="ghost" onClick={() => act(() => api.planner.requirements.autoFill(r.id))}>
+                        🤖 Fill {r.vacant}
+                      </Button>
+                    ) : null}
+                    <Button size="sm" onClick={() => setAssignReq(r)}>
+                      Assign staff
                     </Button>
                     <button type="button" aria-label="Delete" className="text-[#94A3B8] hover:text-[#B91C1C]" onClick={() => act(() => api.planner.requirements.remove(r.id))}>
                       <Icon name="trash" size={15} />
@@ -310,25 +315,6 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
                     style={{ width: `${Math.min(100, (r.assigned / r.requiredCount) * 100)}%`, backgroundColor: 'var(--accent)' }}
                   />
                 </div>
-
-                {assignTo === r.id ? (
-                  <div className="mt-3 flex items-end gap-2">
-                    <Input value={assignWa} onChange={(e) => setAssignWa(e.target.value)} placeholder="Worker WA-ID" className="max-w-[180px]" />
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        act(async () => {
-                          if (!assignWa.trim()) return;
-                          await api.planner.requirements.assign(r.id, { waId: assignWa.trim() });
-                          setAssignWa('');
-                          setAssignTo(null);
-                        })
-                      }
-                    >
-                      Add
-                    </Button>
-                  </div>
-                ) : null}
 
                 {r.assignments.length > 0 ? (
                   <ul className="mt-3 divide-y divide-[#F1F5F9]">
@@ -358,9 +344,17 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
         ))
       )}
       <p className="text-xs text-[#94A3B8]">
-        Demand-first: enter what you need, then fill it. Conflict checks, best-match candidates, publish &amp; cascade arrive as
-        you assign — workers accept from their own app (Accept/Decline here simulates that).
+        Demand-first: enter what you need, then fill it. The assign drawer ranks available workers by best match, flags
+        conflicts, and lets you auto-fill — workers accept from their own app (Accept/Decline here simulates that).
       </p>
+
+      {assignReq ? (
+        <RequirementAssignDrawer
+          requirement={reqs.find((r) => r.id === assignReq.id) ?? assignReq}
+          onChanged={load}
+          onClose={() => setAssignReq(null)}
+        />
+      ) : null}
     </div>
   );
 }

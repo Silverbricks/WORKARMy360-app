@@ -162,6 +162,20 @@ export class PlannerController {
     return this.planner.assign(user.sub, id, body);
   }
 
+  @Get('planner/requirements/:id/candidates')
+  candidates(
+    @CurrentUser() user: { sub: string },
+    @Param('id') id: string,
+    @Query() query: { sources?: string },
+  ) {
+    return this.planner.candidates(user.sub, id, query.sources);
+  }
+
+  @Post('planner/requirements/:id/auto-fill')
+  autoFill(@CurrentUser() user: { sub: string }, @Param('id') id: string) {
+    return this.planner.autoFill(user.sub, id);
+  }
+
   // ---- Assignments ----
   @Post('planner/assignments/:id/respond')
   respond(

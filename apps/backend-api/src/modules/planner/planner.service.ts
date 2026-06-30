@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { AssignmentStatus, Prisma } from '@workarmy/database';
-import type { OkResponse, PlannerSummary, StaffingRequirementView } from '@workarmy/types';
+import type { OkResponse, PlannerCandidate, PlannerSummary, StaffingRequirementView } from '@workarmy/types';
 import type {
   PlannerAssignData,
   PlannerRespondData,
@@ -10,6 +10,8 @@ import type {
 import { PrismaService } from '../../prisma/prisma.service';
 import { MembershipService } from '../../common/membership/membership.service';
 import { ApiException } from '../../common/errors/api-exception';
+import { ConfigService } from '../platform/config.service';
+import { PlannerConflictService, isoWeekKey } from './planner-conflict.service';
 
 /** Assignment statuses that count toward a requirement being filled. */
 export const ACTIVE_ASSIGNMENT: AssignmentStatus[] = ['ASSIGNED', 'CONFIRMED', 'ACCEPTED', 'COMPLETED'];
@@ -34,6 +36,8 @@ export class PlannerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly membership: MembershipService,
+    private readonly config: ConfigService,
+    private readonly conflict: PlannerConflictService,
   ) {}
 
   // ---- requirements --------------------------------------------------------
@@ -169,6 +173,151 @@ export class PlannerService {
       hours: Math.round(hours),
       estPayroll: Math.round(estPayroll),
     };
+  }
+
+  // ---- candidates + auto-fill (smarts) -------------------------------------
+
+  async candidates(userId: string, id: string, sources?: string): Promise<PlannerCandidate[]> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const req = await this.prisma.staffingRequirement.findFirst({ where: { id, orgId }, include: { assignments: true } });
+    if (!req) throw ApiException.notFound('Requirement not found.');
+    const config = await this.config.resolve(orgId);
+    const isUrgent = req.category === 'urgent';
+    const sourceFilter = sources ? new Set(sources.split(',').map((s) => s.trim()).filter(Boolean)) : null;
+
+    const workers = await this.prisma.orgWorker.findMany({
+      where: { orgId, active: true },
+      include: {
+        person: {
+          select: {
+            id: true,
+            waId: true,
+            firstName: true,
+            lastName: true,
+            profile: { select: { skills: true, suburb: true, state: true } },
+          },
+        },
+      },
+    });
+    const pool = sourceFilter ? workers.filter((w) => sourceFilter.has(w.source)) : workers;
+    const personIds = pool.map((w) => w.personId);
+    if (personIds.length === 0) return [];
+
+    const assignedSet = new Set(req.assignments.map((a) => a.personId));
+    const weekKey = isoWeekKey(req.date);
+
+    const [reqAssigns, shiftAssigns, leaves, creds] = await Promise.all([
+      this.prisma.requirementAssignment.findMany({
+        where: { personId: { in: personIds }, status: { in: ACTIVE_ASSIGNMENT } },
+        include: { requirement: { select: { id: true, date: true, startTime: true, endTime: true } } },
+      }),
+      this.prisma.shiftAssignment.findMany({
+        where: { personId: { in: personIds }, status: { in: ACTIVE_ASSIGNMENT } },
+        include: { shift: { select: { startAt: true, endAt: true } } },
+      }),
+      this.prisma.leaveRequest.findMany({
+        where: { orgId, status: 'APPROVED' },
+        select: { personName: true, startDate: true, endDate: true },
+      }),
+      this.prisma.credential.findMany({
+        where: { personId: { in: personIds }, expiresAt: { not: null } },
+        select: { personId: true, type: true, expiresAt: true },
+      }),
+    ]);
+
+    const busy = new Map<string, { start: string; end: string }[]>();
+    const weekHours = new Map<string, number>();
+    const pushBusy = (pid: string, iv: { start: string; end: string }) => {
+      const list = busy.get(pid) ?? [];
+      list.push(iv);
+      busy.set(pid, list);
+    };
+    const addHours = (pid: string, h: number) => weekHours.set(pid, (weekHours.get(pid) ?? 0) + h);
+
+    for (const a of reqAssigns) {
+      const r = a.requirement;
+      if (r.id === req.id) continue; // ignore the target requirement itself
+      if (r.date === req.date) pushBusy(a.personId, { start: r.startTime, end: r.endTime });
+      if (isoWeekKey(r.date) === weekKey) addHours(a.personId, shiftHours(r.startTime, r.endTime));
+    }
+    for (const a of shiftAssigns) {
+      const sDate = a.shift.startAt.toISOString().slice(0, 10);
+      const sStart = a.shift.startAt.toISOString().slice(11, 16);
+      const sEnd = a.shift.endAt.toISOString().slice(11, 16);
+      if (sDate === req.date) pushBusy(a.personId, { start: sStart, end: sEnd });
+      if (isoWeekKey(sDate) === weekKey) addHours(a.personId, shiftHours(sStart, sEnd));
+    }
+    const credsBy = new Map<string, { type: string; expiresAt: Date | null }[]>();
+    for (const c of creds) {
+      if (!c.personId) continue;
+      const list = credsBy.get(c.personId) ?? [];
+      list.push({ type: c.type, expiresAt: c.expiresAt });
+      credsBy.set(c.personId, list);
+    }
+
+    const out: PlannerCandidate[] = pool.map((w) => {
+      const p = w.person;
+      const name = nameOf({ firstName: p.firstName, lastName: p.lastName, waId: p.waId });
+      const conflicts = this.conflict.conflicts({
+        date: req.date,
+        start: req.startTime,
+        end: req.endTime,
+        gates: config.gates,
+        personName: name,
+        busyIntervals: busy.get(w.personId) ?? [],
+        leaves,
+        credentials: credsBy.get(w.personId) ?? [],
+        weekHours: weekHours.get(w.personId) ?? 0,
+      });
+      const { score, reasons } = this.conflict.score({
+        reqRole: req.role,
+        reqCategory: req.category,
+        isUrgent,
+        skills: p.profile?.skills ?? null,
+        suburb: p.profile?.suburb ?? null,
+        state: p.profile?.state ?? null,
+        onCall: w.onCall,
+        urgentAvailable: w.urgentAvailable,
+        conflictCount: conflicts.length,
+      });
+      return {
+        personId: w.personId,
+        waId: p.waId,
+        name,
+        source: w.source,
+        skills: p.profile?.skills ?? null,
+        suburb: p.profile?.suburb ?? null,
+        state: p.profile?.state ?? null,
+        payRate: null,
+        score,
+        scoreReasons: reasons,
+        conflicts,
+        assigned: assignedSet.has(w.personId),
+      };
+    });
+    out.sort((a, b) => b.score - a.score);
+    return out;
+  }
+
+  /** Assign the top zero-conflict candidates up to the vacancy count. */
+  async autoFill(userId: string, id: string): Promise<StaffingRequirementView> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const cands = await this.candidates(userId, id);
+    const view = await this.view(orgId, id);
+    let vacant = view.vacant;
+    const assigned = new Set(view.assignments.map((a) => a.personId));
+    for (const c of cands) {
+      if (vacant <= 0) break;
+      if (assigned.has(c.personId) || c.conflicts.length > 0) continue;
+      await this.prisma.requirementAssignment.upsert({
+        where: { requirementId_personId: { requirementId: id, personId: c.personId } },
+        update: { status: 'ASSIGNED', source: c.source },
+        create: { requirementId: id, personId: c.personId, source: c.source, status: 'ASSIGNED' },
+      });
+      assigned.add(c.personId);
+      vacant -= 1;
+    }
+    return this.view(orgId, id);
   }
 
   // ---- internals -----------------------------------------------------------
