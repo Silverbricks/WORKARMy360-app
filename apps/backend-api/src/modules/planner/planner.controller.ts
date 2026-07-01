@@ -311,6 +311,11 @@ export class PlannerController {
   staff(@CurrentUser() user: { sub: string }, @Query() query: { weekStart?: string }) {
     return this.planner.staffCards(user.sub, query.weekStart ?? mondayOf(new Date()));
   }
+
+  @Get('planner/weather')
+  weather(@CurrentUser() user: { sub: string }, @Query() query: { weekStart?: string }) {
+    return this.planner.weather(user.sub, query.weekStart ?? mondayOf(new Date()));
+  }
 }
 
 /** Monday of the given date's week, as YYYY-MM-DD (UTC). */

@@ -48,3 +48,24 @@ h3 {
     transform: translateX(4px);
   }
 }
+
+/* Print / Export — isolate the roster grid so "Print" produces a clean PDF. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #roster-print,
+  #roster-print * {
+    visibility: visible;
+  }
+  #roster-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  #roster-print button[aria-label='Close'],
+  #roster-print .no-print {
+    display: none;
+  }
+}

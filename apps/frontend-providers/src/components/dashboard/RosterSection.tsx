@@ -11,6 +11,7 @@ import type {
   RosterTemplateView,
   RosterWeek,
   StaffingRequirementView,
+  WeatherDay,
   WhosTurningUpDay,
 } from '@workarmy/types';
 import { Alert, Button, Card, Field, Icon, Input, cn } from '@workarmy/ui';
@@ -562,6 +563,24 @@ function GridTab({ config }: { config: ResolvedConfig | null }) {
   const [teamId, setTeamId] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [category, setCategory] = useState<string>('');
+  const [weather, setWeather] = useState<Record<string, WeatherDay>>({});
+
+  const weatherOn = !!config?.modules.find((m) => m.key === 'weather' && m.enabled);
+
+  useEffect(() => {
+    if (!weatherOn) {
+      setWeather({});
+      return;
+    }
+    let active = true;
+    api.planner
+      .weather(weekStart)
+      .then((w) => active && setWeather(Object.fromEntries(w.map((d) => [d.date, d]))))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [weekStart, weatherOn]);
 
   async function load() {
     const [w, list] = await Promise.all([
@@ -659,6 +678,9 @@ function GridTab({ config }: { config: ResolvedConfig | null }) {
               {v.label}
             </button>
           ))}
+          <Button size="sm" variant="secondary" onClick={() => window.print()}>
+            <Icon name="download" size={14} /> Print
+          </Button>
         </div>
       </div>
 
@@ -707,9 +729,11 @@ function GridTab({ config }: { config: ResolvedConfig | null }) {
             <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#94A3B8]">Workers</div>
             {week.days.map((d) => {
               const holi = week.holidaysByDate[d];
+              const wx = weather[d];
               return (
-                <div key={d} className={cn('border-l border-[#E5E7EB] px-2 py-2 text-center text-xs font-semibold', holi ? 'bg-[#FEF2F2] text-[#B91C1C]' : 'text-[#1E293B]')} title={holi ?? ''}>
+                <div key={d} className={cn('border-l border-[#E5E7EB] px-2 py-2 text-center text-xs font-semibold', holi ? 'bg-[#FEF2F2] text-[#B91C1C]' : 'text-[#1E293B]')} title={wx ? `${wx.summary} ${wx.tempMin ?? ''}–${wx.tempMax ?? ''}°` : holi ?? ''}>
                   {dShort(d)}
+                  {wx ? <span className="block text-[10px] font-normal text-[#64748B]">{wx.emoji} {wx.tempMax != null ? `${Math.round(wx.tempMax)}°` : ''}</span> : null}
                   {holi ? <span className="block truncate text-[9px] font-medium">🇦🇺 {holi}</span> : null}
                 </div>
               );

@@ -13,6 +13,7 @@ import type {
   RosterTemplateView,
   RosterWeek,
   StaffingRequirementView,
+  WeatherDay,
   WhosTurningUpDay,
 } from '@workarmy/types';
 import type {
@@ -33,6 +34,7 @@ import { PlatformEventsService } from '../platform/platform-events.service';
 import { ApiException } from '../../common/errors/api-exception';
 import { OVERTIME_THRESHOLD_HOURS, PlannerConflictService, isoWeekKey } from './planner-conflict.service';
 import { holidaysForDates } from './au-holidays';
+import { WeatherService } from './weather.service';
 
 type ReqAssignmentRow = { personId: string; status: AssignmentStatus };
 const activeCount = (assignments: ReqAssignmentRow[]) =>
@@ -72,6 +74,7 @@ export class PlannerService {
     private readonly conflict: PlannerConflictService,
     private readonly notifications: NotificationsService,
     private readonly events: PlatformEventsService,
+    private readonly weatherService: WeatherService,
   ) {}
 
   // ---- requirements --------------------------------------------------------
@@ -851,6 +854,23 @@ export class PlannerService {
         declined: assignments.filter((x) => ['DECLINED', 'NO_SHOW'].includes(x.status)).length,
         assignments,
       }));
+  }
+
+  /** Per-day forecast for the roster week (gated by the Weather module). */
+  async weather(userId: string, weekStart: string): Promise<WeatherDay[]> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const config = await this.config.resolve(orgId);
+    if (!config.modules.find((m) => m.key === 'weather' && m.enabled)) return [];
+    const site = await this.prisma.site.findFirst({ where: { orgId, active: true }, select: { suburb: true, state: true } });
+    let suburb = site?.suburb ?? null;
+    let state = site?.state ?? null;
+    if (!suburb) {
+      const p = await this.prisma.orgProfile.findUnique({ where: { orgId }, select: { suburb: true, state: true } });
+      suburb = p?.suburb ?? null;
+      state = p?.state ?? null;
+    }
+    if (!suburb) return [];
+    return this.weatherService.forecast(suburb, state, weekStart);
   }
 
   /** Staff view — all active workers + their week rollup (hours/shifts/pay). */

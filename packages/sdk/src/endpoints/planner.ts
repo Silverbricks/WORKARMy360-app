@@ -27,6 +27,7 @@ import type {
   StaffingRequirementInput,
   StaffingRequirementUpdate,
   StaffingRequirementView,
+  WeatherDay,
   WhosTurningUpDay,
 } from '@workarmy/types';
 import type { HttpClient } from '../http';
@@ -117,6 +118,7 @@ export function createPlannerClient(http: HttpClient) {
     turnup: (q?: { from?: string; to?: string }) =>
       http.request<WhosTurningUpDay[]>(`/planner/turnup${qs(q ?? {})}`),
     staff: (weekStart: string) => http.request<RosterStaffCard[]>(`/planner/staff${qs({ weekStart })}`),
+    weather: (weekStart: string) => http.request<WeatherDay[]>(`/planner/weather${qs({ weekStart })}`),
     publishRange: (body: PlannerPublishRangeInput) =>
       http.request<OkResponse>('/planner/publish', { method: 'POST', body }),
   };
