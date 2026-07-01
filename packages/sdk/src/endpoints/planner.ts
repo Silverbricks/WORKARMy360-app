@@ -106,7 +106,7 @@ export function createPlannerClient(http: HttpClient) {
         http.request<RosterTemplateView>('/planner/templates', { method: 'POST', body }),
       remove: (id: string) => http.request<OkResponse>(`/planner/templates/${id}`, { method: 'DELETE' }),
     },
-    grid: (weekStart: string) => http.request<RosterWeek>(`/planner/grid${qs({ weekStart })}`),
+    grid: (weekStart: string, days?: number) => http.request<RosterWeek>(`/planner/grid${qs({ weekStart, days })}`),
     summary: (q?: { from?: string; to?: string }) =>
       http.request<PlannerSummary>(`/planner/summary${qs(q ?? {})}`),
     openShifts: (q?: { from?: string; to?: string }) =>

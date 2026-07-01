@@ -286,8 +286,9 @@ export class PlannerController {
   }
 
   @Get('planner/grid')
-  grid(@CurrentUser() user: { sub: string }, @Query() query: { weekStart?: string }) {
-    return this.planner.grid(user.sub, query.weekStart ?? mondayOf(new Date()));
+  grid(@CurrentUser() user: { sub: string }, @Query() query: { weekStart?: string; days?: string }) {
+    const days = query.days ? Math.min(35, Math.max(1, Number(query.days) || 7)) : 7;
+    return this.planner.grid(user.sub, query.weekStart ?? mondayOf(new Date()), days);
   }
 
   @Get('planner/turnup')

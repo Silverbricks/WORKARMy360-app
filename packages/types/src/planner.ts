@@ -187,12 +187,20 @@ export interface RosterGridCell {
   endTime: string;
   locationText: string | null;
   status: StaffingRequirementStatus;
+  conflicts: ConflictKind[];
 }
 export interface RosterGridRow {
   personId: string | null;
   waId: string | null;
   name: string;
   source: RosterSource | null;
+  teamId: string | null;
+  onCall: boolean;
+  urgentAvailable: boolean;
+  availabilityNote: string | null;
+  hours: number;
+  shifts: number;
+  estPay: number;
   cellsByDate: Record<string, RosterGridCell[]>;
 }
 export interface RosterOpenCell {
@@ -217,14 +225,43 @@ export interface PlannerSummary {
   available: number;
   hours: number;
   estPayroll: number;
+  employees: number;
+  openShifts: number;
+  publicHolidays: number;
 }
+
+export interface WeatherDay {
+  date: string;
+  emoji: string;
+  tempMax: number | null;
+  tempMin: number | null;
+  summary: string;
+}
+
 export interface RosterWeek {
   weekStart: string;
   days: string[];
   rows: RosterGridRow[];
   openByDate: Record<string, RosterOpenCell[]>;
   leaveByDate: Record<string, RosterLeaveCell[]>;
+  holidaysByDate: Record<string, string>;
+  weatherByDate?: Record<string, WeatherDay>;
   summary: PlannerSummary;
+}
+
+/** A staff card for the Staff view — all active workers + their week rollup. */
+export interface RosterStaffCard {
+  personId: string;
+  waId: string;
+  name: string;
+  source: RosterSource;
+  role: string | null;
+  skills: string | null;
+  visa: string | null;
+  hours: number;
+  shifts: number;
+  estPay: number;
+  availability: string;
 }
 
 export interface OpenShift {

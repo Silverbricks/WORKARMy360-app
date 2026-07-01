@@ -30,7 +30,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ConfigService } from '../platform/config.service';
 import { PlatformEventsService } from '../platform/platform-events.service';
 import { ApiException } from '../../common/errors/api-exception';
-import { PlannerConflictService, isoWeekKey } from './planner-conflict.service';
+import { OVERTIME_THRESHOLD_HOURS, PlannerConflictService, isoWeekKey } from './planner-conflict.service';
+import { holidaysForDates } from './au-holidays';
 
 type ReqAssignmentRow = { personId: string; status: AssignmentStatus };
 const activeCount = (assignments: ReqAssignmentRow[]) =>
@@ -187,27 +188,93 @@ export class PlannerService {
     let assigned = 0;
     let hours = 0;
     let estPayroll = 0;
+    let openShifts = 0;
+    const perWorkerWeek = new Map<string, number>();
     for (const r of reqs) {
       required += r.requiredCount;
-      const active = r.assignments.filter((a) => ACTIVE_ASSIGNMENT.includes(a.status)).length;
+      const activeAssigns = r.assignments.filter((a) => ACTIVE_ASSIGNMENT.includes(a.status));
+      const active = activeAssigns.length;
       assigned += active;
       const h = shiftHours(r.startTime, r.endTime);
       hours += h * active;
       estPayroll += (r.payRate ?? 0) * h * active;
+      if (r.requiredCount - active > 0) openShifts += 1;
+      for (const a of activeAssigns) {
+        const wk = `${a.personId}|${isoWeekKey(r.date)}`;
+        perWorkerWeek.set(wk, (perWorkerWeek.get(wk) ?? 0) + h);
+      }
     }
+    let overtime = 0;
+    for (const wh of perWorkerWeek.values()) overtime += Math.max(0, wh - OVERTIME_THRESHOLD_HOURS);
     return {
       required,
       assigned,
       vacant: Math.max(0, required - assigned),
       leave,
-      overtime: 0,
+      overtime: Math.round(overtime),
       available,
       hours: Math.round(hours),
       estPayroll: Math.round(estPayroll),
+      employees: available,
+      openShifts,
+      publicHolidays: 0,
     };
   }
 
   // ---- candidates + auto-fill (smarts) -------------------------------------
+
+  /** Batch-load the conflict inputs (active assignments, leave, credentials) for
+   *  a set of people — shared by candidates() and grid(). */
+  private async loadConflictData(orgId: string, personIds: string[]): Promise<{
+    leaves: { personName: string; startDate: string; endDate: string }[];
+    credsBy: Map<string, { type: string; expiresAt: Date | null }[]>;
+    assignmentsBy: Map<string, AssignmentLite[]>;
+  }> {
+    if (personIds.length === 0) return { leaves: [], credsBy: new Map(), assignmentsBy: new Map() };
+    const [reqAssigns, shiftAssigns, leaves, creds] = await Promise.all([
+      this.prisma.requirementAssignment.findMany({
+        where: { personId: { in: personIds }, status: { in: ACTIVE_ASSIGNMENT } },
+        include: { requirement: { select: { id: true, date: true, startTime: true, endTime: true } } },
+      }),
+      this.prisma.shiftAssignment.findMany({
+        where: { personId: { in: personIds }, status: { in: ACTIVE_ASSIGNMENT } },
+        include: { shift: { select: { startAt: true, endAt: true } } },
+      }),
+      this.prisma.leaveRequest.findMany({
+        where: { orgId, status: 'APPROVED' },
+        select: { personName: true, startDate: true, endDate: true },
+      }),
+      this.prisma.credential.findMany({
+        where: { personId: { in: personIds }, expiresAt: { not: null } },
+        select: { personId: true, type: true, expiresAt: true },
+      }),
+    ]);
+    const assignmentsBy = new Map<string, AssignmentLite[]>();
+    const push = (pid: string, a: AssignmentLite) => {
+      const l = assignmentsBy.get(pid) ?? [];
+      l.push(a);
+      assignmentsBy.set(pid, l);
+    };
+    for (const a of reqAssigns) {
+      push(a.personId, { requirementId: a.requirement.id, date: a.requirement.date, start: a.requirement.startTime, end: a.requirement.endTime });
+    }
+    for (const a of shiftAssigns) {
+      push(a.personId, {
+        requirementId: null,
+        date: a.shift.startAt.toISOString().slice(0, 10),
+        start: a.shift.startAt.toISOString().slice(11, 16),
+        end: a.shift.endAt.toISOString().slice(11, 16),
+      });
+    }
+    const credsBy = new Map<string, { type: string; expiresAt: Date | null }[]>();
+    for (const c of creds) {
+      if (!c.personId) continue;
+      const l = credsBy.get(c.personId) ?? [];
+      l.push({ type: c.type, expiresAt: c.expiresAt });
+      credsBy.set(c.personId, l);
+    }
+    return { leaves, credsBy, assignmentsBy };
+  }
 
   async candidates(userId: string, id: string, sources?: string): Promise<PlannerCandidate[]> {
     const { orgId } = await this.membership.requireOrg(userId);
@@ -236,70 +303,22 @@ export class PlannerService {
     if (personIds.length === 0) return [];
 
     const assignedSet = new Set(req.assignments.map((a) => a.personId));
-    const weekKey = isoWeekKey(req.date);
-
-    const [reqAssigns, shiftAssigns, leaves, creds] = await Promise.all([
-      this.prisma.requirementAssignment.findMany({
-        where: { personId: { in: personIds }, status: { in: ACTIVE_ASSIGNMENT } },
-        include: { requirement: { select: { id: true, date: true, startTime: true, endTime: true } } },
-      }),
-      this.prisma.shiftAssignment.findMany({
-        where: { personId: { in: personIds }, status: { in: ACTIVE_ASSIGNMENT } },
-        include: { shift: { select: { startAt: true, endAt: true } } },
-      }),
-      this.prisma.leaveRequest.findMany({
-        where: { orgId, status: 'APPROVED' },
-        select: { personName: true, startDate: true, endDate: true },
-      }),
-      this.prisma.credential.findMany({
-        where: { personId: { in: personIds }, expiresAt: { not: null } },
-        select: { personId: true, type: true, expiresAt: true },
-      }),
-    ]);
-
-    const busy = new Map<string, { start: string; end: string }[]>();
-    const weekHours = new Map<string, number>();
-    const pushBusy = (pid: string, iv: { start: string; end: string }) => {
-      const list = busy.get(pid) ?? [];
-      list.push(iv);
-      busy.set(pid, list);
-    };
-    const addHours = (pid: string, h: number) => weekHours.set(pid, (weekHours.get(pid) ?? 0) + h);
-
-    for (const a of reqAssigns) {
-      const r = a.requirement;
-      if (r.id === req.id) continue; // ignore the target requirement itself
-      if (r.date === req.date) pushBusy(a.personId, { start: r.startTime, end: r.endTime });
-      if (isoWeekKey(r.date) === weekKey) addHours(a.personId, shiftHours(r.startTime, r.endTime));
-    }
-    for (const a of shiftAssigns) {
-      const sDate = a.shift.startAt.toISOString().slice(0, 10);
-      const sStart = a.shift.startAt.toISOString().slice(11, 16);
-      const sEnd = a.shift.endAt.toISOString().slice(11, 16);
-      if (sDate === req.date) pushBusy(a.personId, { start: sStart, end: sEnd });
-      if (isoWeekKey(sDate) === weekKey) addHours(a.personId, shiftHours(sStart, sEnd));
-    }
-    const credsBy = new Map<string, { type: string; expiresAt: Date | null }[]>();
-    for (const c of creds) {
-      if (!c.personId) continue;
-      const list = credsBy.get(c.personId) ?? [];
-      list.push({ type: c.type, expiresAt: c.expiresAt });
-      credsBy.set(c.personId, list);
-    }
+    const ctx = await this.loadConflictData(orgId, personIds);
 
     const out: PlannerCandidate[] = pool.map((w) => {
       const p = w.person;
       const name = nameOf({ firstName: p.firstName, lastName: p.lastName, waId: p.waId });
+      const { busy, weekHours } = busyAndWeekHours(ctx.assignmentsBy.get(w.personId) ?? [], req.date, req.id);
       const conflicts = this.conflict.conflicts({
         date: req.date,
         start: req.startTime,
         end: req.endTime,
         gates: config.gates,
         personName: name,
-        busyIntervals: busy.get(w.personId) ?? [],
-        leaves,
-        credentials: credsBy.get(w.personId) ?? [],
-        weekHours: weekHours.get(w.personId) ?? 0,
+        busyIntervals: busy,
+        leaves: ctx.leaves,
+        credentials: ctx.credsBy.get(w.personId) ?? [],
+        weekHours,
       });
       const { score, reasons } = this.conflict.score({
         reqRole: req.role,
@@ -618,31 +637,39 @@ export class PlannerService {
 
   // ---- grid + who's turning up ---------------------------------------------
 
-  async grid(userId: string, weekStart: string): Promise<RosterWeek> {
+  async grid(userId: string, weekStart: string, dayCount = 7): Promise<RosterWeek> {
     const { orgId } = await this.membership.requireOrg(userId);
-    const days = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
-    const [reqs, leaves, available] = await Promise.all([
+    const days = Array.from({ length: dayCount }, (_, i) => addDaysISO(weekStart, i));
+    const [reqs, leaves, available, orgProfile, config] = await Promise.all([
       this.prisma.staffingRequirement.findMany({
-        where: { orgId, date: { gte: days[0], lte: days[6] } },
+        where: { orgId, date: { gte: days[0], lte: days[days.length - 1] } },
         include: { assignments: true },
         orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
       }),
       this.prisma.leaveRequest.findMany({ where: { orgId, status: 'APPROVED' } }),
       this.prisma.orgWorker.count({ where: { orgId, active: true } }),
+      this.prisma.orgProfile.findUnique({ where: { orgId }, select: { state: true } }),
+      this.config.resolve(orgId),
     ]);
     const persons = await this.personsFor(reqs);
-    const personIds = [...persons.keys()];
-    const workers = personIds.length
-      ? await this.prisma.orgWorker.findMany({ where: { orgId, personId: { in: personIds } }, select: { personId: true, source: true } })
+    const assignedIds = [...persons.keys()];
+    const workers = assignedIds.length
+      ? await this.prisma.orgWorker.findMany({
+          where: { orgId, personId: { in: assignedIds } },
+          select: { personId: true, source: true, teamId: true, onCall: true, urgentAvailable: true, availabilityNote: true },
+        })
       : [];
-    const sourceBy = new Map(workers.map((w) => [w.personId, w.source]));
+    const workerBy = new Map(workers.map((w) => [w.personId, w]));
+    const ctx = await this.loadConflictData(orgId, assignedIds);
 
     const rowMap = new Map<string, RosterGridRow>();
     const openByDate: Record<string, RosterOpenCell[]> = {};
+    const perWorkerWeek = new Map<string, number>();
     let required = 0;
     let assigned = 0;
     let hours = 0;
     let estPayroll = 0;
+    let openShifts = 0;
 
     for (const r of reqs) {
       required += r.requiredCount;
@@ -654,12 +681,41 @@ export class PlannerService {
 
       for (const a of r.assignments) {
         if (!ACTIVE_ASSIGNMENT.includes(a.status)) continue;
+        const p = persons.get(a.personId);
+        const name = p?.name ?? '(unknown)';
         let row = rowMap.get(a.personId);
         if (!row) {
-          const p = persons.get(a.personId);
-          row = { personId: a.personId, waId: p?.waId ?? null, name: p?.name ?? '(unknown)', source: sourceBy.get(a.personId) ?? null, cellsByDate: {} };
+          const w = workerBy.get(a.personId);
+          row = {
+            personId: a.personId,
+            waId: p?.waId ?? null,
+            name,
+            source: w?.source ?? null,
+            teamId: w?.teamId ?? null,
+            onCall: w?.onCall ?? false,
+            urgentAvailable: w?.urgentAvailable ?? false,
+            availabilityNote: w?.availabilityNote ?? null,
+            hours: 0,
+            shifts: 0,
+            estPay: 0,
+            cellsByDate: {},
+          };
           rowMap.set(a.personId, row);
         }
+        const { busy, weekHours } = busyAndWeekHours(ctx.assignmentsBy.get(a.personId) ?? [], r.date, r.id);
+        const conflicts = this.conflict
+          .conflicts({
+            date: r.date,
+            start: r.startTime,
+            end: r.endTime,
+            gates: config.gates,
+            personName: name,
+            busyIntervals: busy,
+            leaves: ctx.leaves,
+            credentials: ctx.credsBy.get(a.personId) ?? [],
+            weekHours,
+          })
+          .map((c) => c.kind);
         const cells = row.cellsByDate[r.date] ?? [];
         cells.push({
           requirementId: r.id,
@@ -670,12 +726,19 @@ export class PlannerService {
           endTime: r.endTime,
           locationText: r.locationText,
           status: r.status,
+          conflicts,
         });
         row.cellsByDate[r.date] = cells;
+        row.hours += h;
+        row.shifts += 1;
+        row.estPay += (r.payRate ?? 0) * h;
+        const wk = `${a.personId}|${isoWeekKey(r.date)}`;
+        perWorkerWeek.set(wk, (perWorkerWeek.get(wk) ?? 0) + h);
       }
 
       const vacant = r.requiredCount - act;
       if (vacant > 0) {
+        openShifts += 1;
         const list = openByDate[r.date] ?? [];
         list.push({ requirementId: r.id, role: r.role, category: r.category, startTime: r.startTime, endTime: r.endTime, locationText: r.locationText, vacant });
         openByDate[r.date] = list;
@@ -693,8 +756,15 @@ export class PlannerService {
       }
     }
 
+    for (const row of rowMap.values()) {
+      row.hours = Math.round(row.hours);
+      row.estPay = Math.round(row.estPay);
+    }
     const rows = [...rowMap.values()].sort((a, b) => a.name.localeCompare(b.name));
     const leaveCount = leaves.filter((l) => days.some((d) => d >= l.startDate && d <= l.endDate)).length;
+    const holidaysByDate = holidaysForDates(days, orgProfile?.state ?? null);
+    let overtime = 0;
+    for (const wh of perWorkerWeek.values()) overtime += Math.max(0, wh - OVERTIME_THRESHOLD_HOURS);
 
     return {
       weekStart,
@@ -702,15 +772,19 @@ export class PlannerService {
       rows,
       openByDate,
       leaveByDate,
+      holidaysByDate,
       summary: {
         required,
         assigned,
         vacant: Math.max(0, required - assigned),
         leave: leaveCount,
-        overtime: 0,
+        overtime: Math.round(overtime),
         available,
         hours: Math.round(hours),
         estPayroll: Math.round(estPayroll),
+        employees: available,
+        openShifts,
+        publicHolidays: Object.keys(holidaysByDate).length,
       },
     };
   }
@@ -833,6 +907,25 @@ export class PlannerService {
 }
 
 // --- pure mappers ----------------------------------------------------------
+
+type AssignmentLite = { requirementId: string | null; date: string; start: string; end: string };
+
+/** Busy intervals on `date` + total hours that ISO week, excluding one requirement. */
+function busyAndWeekHours(
+  assignments: AssignmentLite[],
+  date: string,
+  excludeRequirementId: string | null,
+): { busy: { start: string; end: string }[]; weekHours: number } {
+  const weekKey = isoWeekKey(date);
+  const busy: { start: string; end: string }[] = [];
+  let weekHours = 0;
+  for (const a of assignments) {
+    if (excludeRequirementId && a.requirementId === excludeRequirementId) continue;
+    if (a.date === date) busy.push({ start: a.start, end: a.end });
+    if (isoWeekKey(a.date) === weekKey) weekHours += shiftHours(a.start, a.end);
+  }
+  return { busy, weekHours };
+}
 
 function dateFilter(q: { from?: string; to?: string }): { date?: Prisma.StringFilter } {
   if (q.from && q.to) return { date: { gte: q.from, lte: q.to } };

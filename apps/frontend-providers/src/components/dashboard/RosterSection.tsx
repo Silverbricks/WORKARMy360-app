@@ -494,22 +494,48 @@ function Stat({ label, value, tone }: { label: string; value: number | string; t
   );
 }
 
+const RANGE_VIEWS: { key: string; label: string; days: number }[] = [
+  { key: 'day', label: 'Day', days: 1 },
+  { key: 'week', label: 'Week', days: 7 },
+  { key: 'fortnight', label: 'Fortnight', days: 14 },
+  { key: 'month', label: 'Month', days: 28 },
+];
+const conflictShort: Record<string, string> = {
+  DOUBLE_BOOKED: 'Double-booked',
+  ON_LEAVE: 'On leave',
+  CREDENTIAL_EXPIRED: 'Credential expired',
+  OVER_HOURS: 'Over hours',
+};
+
 function GridTab({ config }: { config: ResolvedConfig | null }) {
   const [weekStart, setWeekStart] = useState(mondayOfToday());
+  const [days, setDays] = useState(7);
   const [week, setWeek] = useState<RosterWeek | null>(null);
   const [reqMap, setReqMap] = useState<Map<string, StaffingRequirementView>>(new Map());
+  const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assignReq, setAssignReq] = useState<StaffingRequirementView | null>(null);
+  const [search, setSearch] = useState('');
+  const [teamId, setTeamId] = useState<string>('');
+  const [location, setLocation] = useState<string>('');
+  const [category, setCategory] = useState<string>('');
 
   async function load() {
     const [w, list] = await Promise.all([
-      api.planner.grid(weekStart),
-      api.planner.requirements.list({ from: weekStart, to: addDaysISO(weekStart, 6) }),
+      api.planner.grid(weekStart, days),
+      api.planner.requirements.list({ from: weekStart, to: addDaysISO(weekStart, days - 1) }),
     ]);
     setWeek(w);
     setReqMap(new Map(list.map((r) => [r.id, r])));
   }
+
+  useEffect(() => {
+    api.staff.teams
+      .list()
+      .then((t) => setTeams(t.map((x) => ({ id: x.id, name: x.name }))))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -527,85 +553,152 @@ function GridTab({ config }: { config: ResolvedConfig | null }) {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekStart]);
+  }, [weekStart, days]);
 
   const catColor = (key: string) => config?.categories.find((c) => c.key === key)?.color ?? '#64748B';
-  const cols = '160px repeat(7, minmax(110px, 1fr))';
-  const openCell = (id: string) => {
+  const cols = `170px repeat(${days}, minmax(${days > 14 ? '84px' : '112px'}, 1fr))`;
+  const openReq = (id: string) => {
     const r = reqMap.get(id);
     if (r) setAssignReq(r);
   };
+
+  const locations = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of reqMap.values()) if (r.locationText) set.add(r.locationText);
+    return [...set].sort();
+  }, [reqMap]);
+
+  const cellVisible = (c: { category: string; locationText: string | null }) =>
+    (!category || c.category === category) && (!location || c.locationText === location);
 
   if (loading) return <div className="py-16 text-center text-[#64748B]">Loading…</div>;
   if (error) return <Alert tone="error">{error}</Alert>;
   if (!week) return null;
 
+  const q = search.trim().toLowerCase();
+  const rows = week.rows.filter((r) => (!teamId || r.teamId === teamId) && (!q || r.name.toLowerCase().includes(q)));
   const hasLeave = Object.keys(week.leaveByDate).length > 0;
 
   return (
-    <div className="space-y-4">
+    <div id="roster-print" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setWeekStart(addDaysISO(weekStart, -7))}>
+          <Button size="sm" variant="secondary" onClick={() => setWeekStart(addDaysISO(weekStart, -days))}>
             ‹
           </Button>
           <span className="min-w-[150px] text-center text-sm font-medium text-[#1E293B]">
-            {dayLabel(week.days[0])} – {dayLabel(week.days[6])}
+            {dayLabel(week.days[0])} – {dayLabel(week.days[week.days.length - 1])}
           </span>
-          <Button size="sm" variant="secondary" onClick={() => setWeekStart(addDaysISO(weekStart, 7))}>
+          <Button size="sm" variant="secondary" onClick={() => setWeekStart(addDaysISO(weekStart, days))}>
             ›
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setWeekStart(mondayOfToday())}>
-            This week
+            Today
           </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {RANGE_VIEWS.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              onClick={() => setDays(v.days)}
+              className={cn('rounded-lg px-2.5 py-1 text-xs font-medium', days === v.days ? 'text-white' : 'bg-[#F1F5F9] text-[#64748B]')}
+              style={days === v.days ? { backgroundColor: 'var(--accent)' } : undefined}
+            >
+              {v.label}
+            </button>
+          ))}
         </div>
       </div>
 
+      {/* filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search staff…" className="max-w-[180px]" />
+        <select value={teamId} onChange={(e) => setTeamId(e.target.value)} className="rounded-lg border border-[#E5E7EB] px-2.5 py-2 text-sm text-[#1E293B]">
+          <option value="">All teams</option>
+          {teams.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+        <select value={location} onChange={(e) => setLocation(e.target.value)} className="rounded-lg border border-[#E5E7EB] px-2.5 py-2 text-sm text-[#1E293B]">
+          <option value="">All {(config?.terminology.location ?? 'location').toLowerCase()}s</option>
+          {locations.map((l) => (
+            <option key={l} value={l}>
+              {l}
+            </option>
+          ))}
+        </select>
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded-lg border border-[#E5E7EB] px-2.5 py-2 text-sm text-[#1E293B]">
+          <option value="">All categories</option>
+          {(config?.categories ?? []).map((c) => (
+            <option key={c.key} value={c.key}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-        <Stat label="Shifts" value={week.rows.reduce((n, r) => n + Object.values(r.cellsByDate).reduce((m, c) => m + c.length, 0), 0)} />
+        <Stat label="Employees" value={week.summary.employees} />
         <Stat label="Hours" value={`${week.summary.hours}h`} />
-        <Stat label="Required" value={week.summary.required} />
         <Stat label="Assigned" value={week.summary.assigned} tone="ok" />
         <Stat label="Vacant" value={week.summary.vacant} tone={week.summary.vacant > 0 ? 'bad' : 'ok'} />
         <Stat label="On leave" value={week.summary.leave} />
+        <Stat label="Overtime" value={`${week.summary.overtime}h`} tone={week.summary.overtime > 0 ? 'bad' : undefined} />
       </div>
 
       <Card className="overflow-x-auto p-0">
-        <div className="min-w-[860px]">
+        <div style={{ minWidth: `${170 + days * (days > 14 ? 84 : 112)}px` }}>
           {/* header */}
           <div className="grid border-b border-[#E5E7EB]" style={{ gridTemplateColumns: cols }}>
             <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#94A3B8]">Workers</div>
-            {week.days.map((d) => (
-              <div key={d} className="border-l border-[#E5E7EB] px-2 py-2 text-center text-xs font-semibold text-[#1E293B]">
-                {dShort(d)}
-              </div>
-            ))}
+            {week.days.map((d) => {
+              const holi = week.holidaysByDate[d];
+              return (
+                <div key={d} className={cn('border-l border-[#E5E7EB] px-2 py-2 text-center text-xs font-semibold', holi ? 'bg-[#FEF2F2] text-[#B91C1C]' : 'text-[#1E293B]')} title={holi ?? ''}>
+                  {dShort(d)}
+                  {holi ? <span className="block truncate text-[9px] font-medium">🇦🇺 {holi}</span> : null}
+                </div>
+              );
+            })}
           </div>
 
           {/* worker rows */}
-          {week.rows.length === 0 ? (
-            <div className="px-3 py-6 text-center text-sm text-[#94A3B8]">No one rostered this week yet.</div>
+          {rows.length === 0 ? (
+            <div className="px-3 py-6 text-center text-sm text-[#94A3B8]">No matching workers rostered.</div>
           ) : (
-            week.rows.map((row) => (
+            rows.map((row) => (
               <div key={row.personId ?? row.name} className="grid border-b border-[#F1F5F9]" style={{ gridTemplateColumns: cols }}>
                 <div className="px-3 py-2">
                   <p className="truncate text-sm font-medium text-[#1E293B]">{row.name}</p>
-                  {row.source ? <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', sourceTone[row.source])}>{sourceLabel[row.source]}</span> : null}
+                  <p className="flex items-center gap-1.5 text-[10px] text-[#64748B]">
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: row.urgentAvailable ? '#C2410C' : row.onCall ? 'var(--accent)' : '#94A3B8' }}
+                      title={row.availabilityNote ?? (row.onCall ? 'On-call' : '')}
+                    />
+                    {row.hours}h · {row.shifts} sh · ${row.estPay.toLocaleString()}
+                  </p>
+                  {row.source ? <span className={cn('mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium', sourceTone[row.source])}>{sourceLabel[row.source]}</span> : null}
                 </div>
                 {week.days.map((d) => (
-                  <div key={d} className="min-h-[52px] border-l border-[#F1F5F9] p-1">
-                    {(row.cellsByDate[d] ?? []).map((c) => (
+                  <div key={d} className={cn('min-h-[52px] border-l border-[#F1F5F9] p-1', week.holidaysByDate[d] ? 'bg-[#FEF2F2]/40' : '')}>
+                    {(row.cellsByDate[d] ?? []).filter(cellVisible).map((c) => (
                       <button
                         key={c.assignmentId}
                         type="button"
-                        onClick={() => openCell(c.requirementId)}
-                        className="mb-1 block w-full rounded-md border-l-[3px] bg-[#F8FAFC] px-1.5 py-1 text-left"
+                        onClick={() => openReq(c.requirementId)}
+                        className="relative mb-1 block w-full rounded-md border-l-[3px] bg-[#F8FAFC] px-1.5 py-1 text-left"
                         style={{ borderLeftColor: catColor(c.category) }}
+                        title={c.conflicts.map((k) => conflictShort[k] ?? k).join(' · ')}
                       >
                         <span className="block truncate text-[11px] font-semibold text-[#1E293B]">{c.role}</span>
                         <span className="block text-[10px] text-[#64748B]">
                           {c.startTime}–{c.endTime}
                         </span>
+                        {c.conflicts.length ? <span className="absolute right-0.5 top-0.5 text-[10px]">⚠</span> : null}
                       </button>
                     ))}
                   </div>
@@ -619,11 +712,11 @@ function GridTab({ config }: { config: ResolvedConfig | null }) {
             <div className="px-3 py-2 text-xs font-semibold text-[#92400E]">Open shifts</div>
             {week.days.map((d) => (
               <div key={d} className="min-h-[44px] border-l border-[#F8E3B5] p-1">
-                {(week.openByDate[d] ?? []).map((o) => (
+                {(week.openByDate[d] ?? []).filter(cellVisible).map((o) => (
                   <button
                     key={o.requirementId}
                     type="button"
-                    onClick={() => openCell(o.requirementId)}
+                    onClick={() => openReq(o.requirementId)}
                     className="mb-1 block w-full rounded-md border border-dashed border-[#E5B567] bg-white px-1.5 py-1 text-left"
                   >
                     <span className="block truncate text-[11px] font-semibold text-[#92400E]">{o.role}</span>
