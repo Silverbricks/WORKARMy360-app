@@ -7,6 +7,7 @@ import { QualificationsSection } from '@/components/dashboard/QualificationsSect
 import { ResumeSection } from '@/components/dashboard/ResumeSection';
 import { WorkerIdSection } from '@/components/dashboard/WorkerIdSection';
 import { WorkSection } from '@/components/dashboard/WorkSection';
+import { MyShiftsSection } from '@/components/dashboard/MyShiftsSection';
 import { CommunitySection } from '@/components/dashboard/CommunitySection';
 import { SupportSection } from '@/components/dashboard/SupportSection';
 import { ServicesSection } from '@/components/dashboard/ServicesSection';
@@ -52,6 +53,8 @@ function sectionElement(slug: string, data: ReturnType<typeof getSection>) {
       return <WorkerIdSection />;
     case 'work':
       return <WorkSection />;
+    case 'shifts':
+      return <MyShiftsSection />;
     case 'community':
       return <CommunitySection />;
     case 'support':

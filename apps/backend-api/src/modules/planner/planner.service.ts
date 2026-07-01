@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import type { AssignmentStatus, DispatchChannel, Prisma } from '@workarmy/database';
 import type {
+  MarketplaceShift,
+  MyShiftView,
   OkResponse,
   OpenShift,
   PlannerCandidate,
@@ -616,7 +618,7 @@ export class PlannerService {
         kind: 'open-shift',
         title: 'Open shift available',
         body: `${r.role} on ${r.date}, ${r.startTime}–${r.endTime}`,
-        link: '/dashboard/work?tab=shifts',
+        link: '/dashboard/shifts?tab=open',
       });
     }
     await this.events.emit('REQUIREMENT_CASCADED', userId, { orgId, requirementId: id, dispatchId: dispatch.id, vacant });
@@ -644,21 +646,97 @@ export class PlannerService {
       .filter((o) => o.vacant > 0);
   }
 
-  /** A worker claims a vacant published open shift (thin marketplace). */
+  /** A worker claims a vacant, marketplace-offered open shift. */
   async claim(userId: string, id: string): Promise<StaffingRequirementView> {
     const personId = await this.membership.requirePerson(userId);
     const r = await this.prisma.staffingRequirement.findUnique({ where: { id }, include: { assignments: true } });
     if (!r) throw ApiException.notFound('Shift not found.');
-    if (r.status !== 'PUBLISHED') throw ApiException.badRequest('VALIDATION_ERROR', 'This shift is not open.');
-    if (!r.assignments.some((a) => a.personId === personId) && r.requiredCount - activeCount(r.assignments) <= 0) {
+    if (r.status !== 'PUBLISHED' || !r.openMarketplace) {
+      throw ApiException.badRequest('VALIDATION_ERROR', 'This shift is not open for claiming.');
+    }
+    const already = r.assignments.some((a) => a.personId === personId);
+    if (!already && r.requiredCount - activeCount(r.assignments) <= 0) {
       throw ApiException.badRequest('VALIDATION_ERROR', 'This shift is already full.');
     }
+    const source = await this.inferSource(r.orgId, personId);
     await this.prisma.requirementAssignment.upsert({
       where: { requirementId_personId: { requirementId: id, personId } },
-      update: { status: 'ASSIGNED', source: 'NEARBY' },
-      create: { requirementId: id, personId, source: 'NEARBY', status: 'ASSIGNED' },
+      update: { status: 'ASSIGNED', source },
+      create: { requirementId: id, personId, source, status: 'ASSIGNED' },
     });
     return this.view(r.orgId, id);
+  }
+
+  // ---- worker-facing (job-seeker app; person-scoped) -----------------------
+
+  /** The shifts the logged-in worker is rostered on (recent + upcoming). */
+  async myShifts(userId: string): Promise<MyShiftView[]> {
+    const personId = await this.membership.requirePerson(userId);
+    const since = addDaysISO(new Date().toISOString().slice(0, 10), -2);
+    const assigns = await this.prisma.requirementAssignment.findMany({
+      where: { personId, requirement: { date: { gte: since } } },
+      include: { requirement: true },
+    });
+    const orgIds = [...new Set(assigns.map((a) => a.requirement.orgId))];
+    const orgs = orgIds.length
+      ? await this.prisma.organisation.findMany({ where: { id: { in: orgIds } }, select: { id: true, name: true } })
+      : [];
+    const orgName = new Map(orgs.map((o) => [o.id, o.name]));
+    return assigns
+      .map((a) => ({
+        assignmentId: a.id,
+        requirementId: a.requirementId,
+        status: a.status,
+        orgName: orgName.get(a.requirement.orgId) ?? 'Employer',
+        role: a.requirement.role,
+        category: a.requirement.category,
+        date: a.requirement.date,
+        startTime: a.requirement.startTime,
+        endTime: a.requirement.endTime,
+        locationText: a.requirement.locationText,
+        client: a.requirement.client,
+      }))
+      .sort((x, y) => x.date.localeCompare(y.date) || x.startTime.localeCompare(y.startTime));
+  }
+
+  /** The worker accepts/declines/confirms their OWN assignment. */
+  async respondAsWorker(userId: string, assignmentId: string, body: PlannerRespondData): Promise<OkResponse> {
+    const personId = await this.membership.requirePerson(userId);
+    const a = await this.prisma.requirementAssignment.findUnique({ where: { id: assignmentId }, select: { id: true, personId: true } });
+    if (!a || a.personId !== personId) throw ApiException.notFound('Shift not found.');
+    await this.prisma.requirementAssignment.update({ where: { id: assignmentId }, data: { status: body.response } });
+    return { ok: true };
+  }
+
+  /** Open (cascaded) shifts the worker can claim — from orgs whose pool they're in. */
+  async marketplace(userId: string): Promise<MarketplaceShift[]> {
+    const personId = await this.membership.requirePerson(userId);
+    const pool = await this.prisma.orgWorker.findMany({ where: { personId, active: true }, select: { orgId: true } });
+    const orgIds = pool.map((p) => p.orgId);
+    if (orgIds.length === 0) return [];
+    const [reqs, orgs] = await Promise.all([
+      this.prisma.staffingRequirement.findMany({
+        where: { orgId: { in: orgIds }, status: 'PUBLISHED', openMarketplace: true },
+        include: { assignments: true },
+        orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      }),
+      this.prisma.organisation.findMany({ where: { id: { in: orgIds } }, select: { id: true, name: true } }),
+    ]);
+    const orgName = new Map(orgs.map((o) => [o.id, o.name]));
+    return reqs
+      .filter((r) => r.requiredCount - activeCount(r.assignments) > 0 && !r.assignments.some((a) => a.personId === personId && ACTIVE_ASSIGNMENT.includes(a.status)))
+      .map((r) => ({
+        requirementId: r.id,
+        orgName: orgName.get(r.orgId) ?? 'Employer',
+        date: r.date,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        role: r.role,
+        category: r.category,
+        locationText: r.locationText,
+        client: r.client,
+        vacant: r.requiredCount - activeCount(r.assignments),
+      }));
   }
 
   // ---- grid + who's turning up ---------------------------------------------

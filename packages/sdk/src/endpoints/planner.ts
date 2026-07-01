@@ -6,8 +6,10 @@ import type {
   ConfigGeneralInput,
   ConfigTermInput,
   IndustryTemplateSummary,
+  MarketplaceShift,
   ModuleCatalogEntry,
   ModuleToggleInput,
+  MyShiftView,
   OkResponse,
   OpenShift,
   PlannerAssignInput,
@@ -109,6 +111,15 @@ export function createPlannerClient(http: HttpClient) {
       create: (body: RosterTemplateInput) =>
         http.request<RosterTemplateView>('/planner/templates', { method: 'POST', body }),
       remove: (id: string) => http.request<OkResponse>(`/planner/templates/${id}`, { method: 'DELETE' }),
+    },
+    /** Worker-facing (job-seeker app): own shifts + open-shift marketplace. */
+    worker: {
+      myShifts: () => http.request<MyShiftView[]>('/planner/my-shifts'),
+      respond: (assignmentId: string, body: PlannerRespondInput) =>
+        http.request<OkResponse>(`/planner/my-shifts/${assignmentId}/respond`, { method: 'POST', body }),
+      marketplace: () => http.request<MarketplaceShift[]>('/planner/marketplace'),
+      claim: (requirementId: string) =>
+        http.request<StaffingRequirementView>(`/planner/marketplace/${requirementId}/claim`, { method: 'POST' }),
     },
     grid: (weekStart: string, days?: number) => http.request<RosterWeek>(`/planner/grid${qs({ weekStart, days })}`),
     summary: (q?: { from?: string; to?: string }) =>

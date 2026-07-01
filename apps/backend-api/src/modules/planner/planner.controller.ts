@@ -316,6 +316,31 @@ export class PlannerController {
   weather(@CurrentUser() user: { sub: string }, @Query() query: { weekStart?: string }) {
     return this.planner.weather(user.sub, query.weekStart ?? mondayOf(new Date()));
   }
+
+  // ---- Worker-facing (job-seeker app; person-scoped) ----
+  @Get('planner/my-shifts')
+  myShifts(@CurrentUser() user: { sub: string }) {
+    return this.planner.myShifts(user.sub);
+  }
+
+  @Post('planner/my-shifts/:id/respond')
+  myRespond(
+    @CurrentUser() user: { sub: string },
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(PlannerRespondSchema)) body: PlannerRespondData,
+  ) {
+    return this.planner.respondAsWorker(user.sub, id, body);
+  }
+
+  @Get('planner/marketplace')
+  marketplace(@CurrentUser() user: { sub: string }) {
+    return this.planner.marketplace(user.sub);
+  }
+
+  @Post('planner/marketplace/:id/claim')
+  claimShift(@CurrentUser() user: { sub: string }, @Param('id') id: string) {
+    return this.planner.claim(user.sub, id);
+  }
 }
 
 /** Monday of the given date's week, as YYYY-MM-DD (UTC). */

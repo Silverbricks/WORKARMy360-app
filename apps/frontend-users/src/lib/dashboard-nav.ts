@@ -40,6 +40,8 @@ export const DASHBOARD_NAV: NavGroup[] = [
     title: 'Shifts & Work',
     items: [
       { label: 'Find Shifts', href: '/dashboard/work?tab=shifts', icon: 'calendar' },
+      { label: 'My Shifts', href: '/dashboard/shifts', icon: 'calendar' },
+      { label: 'Open Shifts', href: '/dashboard/shifts?tab=open', icon: 'briefcase' },
       { label: 'Swap Shifts', href: '/dashboard/swap-shifts', icon: 'repeat' },
       { label: 'Share Jobs & Shifts', href: '/dashboard/share-jobs', icon: 'share' },
       { label: 'My Timesheets', href: '/dashboard/work?tab=timesheets', icon: 'clock' },
@@ -110,6 +112,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
 
 /** Add-on / extra routes that aren't part of DASHBOARD_SECTIONS but are valid pages. */
 export const EXTRA_SLUGS = [
+  'shifts',
   'share',
   'manual-timesheet',
   'feedback',

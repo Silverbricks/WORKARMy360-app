@@ -249,6 +249,37 @@ export interface RosterWeek {
   summary: PlannerSummary;
 }
 
+// --- worker-facing (job-seeker app) ---------------------------------------
+
+/** A shift the logged-in worker is assigned to (their own roster). */
+export interface MyShiftView {
+  assignmentId: string;
+  requirementId: string;
+  status: RequirementAssignmentStatus;
+  orgName: string;
+  role: string;
+  category: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  locationText: string | null;
+  client: string | null;
+}
+
+/** An open (cascaded) shift a worker can claim, with the offering company. */
+export interface MarketplaceShift {
+  requirementId: string;
+  orgName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  role: string;
+  category: string;
+  locationText: string | null;
+  client: string | null;
+  vacant: number;
+}
+
 /** A staff card for the Staff view — all active workers + their week rollup. */
 export interface RosterStaffCard {
   personId: string;
