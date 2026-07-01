@@ -20,6 +20,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx seed/seed.ts",
     "db:seed:test": "tsx seed/test-users.ts",
+    "db:seed:roster": "tsx seed/roster-demo.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {
