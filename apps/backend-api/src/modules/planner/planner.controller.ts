@@ -12,6 +12,7 @@ import {
   PlannerCopySchema,
   PlannerFromTemplateSchema,
   PlannerPublishRangeSchema,
+  PlannerReassignSchema,
   PlannerRepeatSchema,
   PlannerRespondSchema,
   RosterTemplateInputSchema,
@@ -30,6 +31,7 @@ import {
   type PlannerFromTemplateData,
   type PlannerPublishRangeData,
   type PlannerRepeatData,
+  type PlannerReassignData,
   type PlannerRespondData,
   type RosterTemplateInputData,
   type StaffingRequirementInputData,
@@ -277,6 +279,15 @@ export class PlannerController {
   @Delete('planner/assignments/:id')
   unassign(@CurrentUser() user: { sub: string }, @Param('id') id: string) {
     return this.planner.unassign(user.sub, id);
+  }
+
+  @Post('planner/assignments/:id/reassign')
+  reassign(
+    @CurrentUser() user: { sub: string },
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(PlannerReassignSchema)) body: PlannerReassignData,
+  ) {
+    return this.planner.reassign(user.sub, id, body.toPersonId);
   }
 
   // ---- Summary / Grid / Who's turning up ----

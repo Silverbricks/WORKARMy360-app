@@ -168,6 +168,28 @@ export class PlannerService {
     return { ok: true };
   }
 
+  /** Move an assignment to a different worker (grid drag-drop). */
+  async reassign(userId: string, assignmentId: string, toPersonId: string): Promise<StaffingRequirementView> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const a = await this.assignmentInOrg(orgId, assignmentId);
+    if (a.personId === toPersonId) return this.view(orgId, a.requirementId);
+    await this.personById(toPersonId); // 400 if the target person doesn't exist
+    const source = await this.inferSource(orgId, toPersonId);
+    const existing = await this.prisma.requirementAssignment.findUnique({
+      where: { requirementId_personId: { requirementId: a.requirementId, personId: toPersonId } },
+    });
+    if (existing) {
+      // Target already on this requirement — drop the source (a merge, not a dup).
+      await this.prisma.requirementAssignment.delete({ where: { id: a.id } });
+    } else {
+      await this.prisma.requirementAssignment.update({
+        where: { id: a.id },
+        data: { personId: toPersonId, source, status: 'ASSIGNED' },
+      });
+    }
+    return this.view(orgId, a.requirementId);
+  }
+
   async respond(userId: string, assignmentId: string, body: PlannerRespondData): Promise<OkResponse> {
     const { orgId } = await this.membership.requireOrg(userId);
     const a = await this.assignmentInOrg(orgId, assignmentId);

@@ -717,6 +717,7 @@ export const PlannerAssignSchema = z.object({
 export const PlannerRespondSchema = z.object({
   response: z.enum(['ACCEPTED', 'DECLINED', 'CONFIRMED']),
 });
+export const PlannerReassignSchema = z.object({ toPersonId: z.string().uuid() });
 export const PlannerCopySchema = z.object({ fromDate: isoDate, toDate: isoDate });
 export const PlannerRepeatSchema = z.object({
   pattern: z.enum(['DAILY', 'WEEKLY', 'FORTNIGHTLY']),
@@ -743,6 +744,7 @@ export type StaffingRequirementInputData = z.infer<typeof StaffingRequirementInp
 export type StaffingRequirementUpdateData = z.infer<typeof StaffingRequirementUpdateSchema>;
 export type PlannerAssignData = z.infer<typeof PlannerAssignSchema>;
 export type PlannerRespondData = z.infer<typeof PlannerRespondSchema>;
+export type PlannerReassignData = z.infer<typeof PlannerReassignSchema>;
 export type PlannerCopyData = z.infer<typeof PlannerCopySchema>;
 export type PlannerRepeatData = z.infer<typeof PlannerRepeatSchema>;
 export type PlannerFromTemplateData = z.infer<typeof PlannerFromTemplateSchema>;

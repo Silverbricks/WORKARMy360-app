@@ -98,6 +98,8 @@ export function createPlannerClient(http: HttpClient) {
     assignments: {
       respond: (id: string, body: PlannerRespondInput) =>
         http.request<OkResponse>(`/planner/assignments/${id}/respond`, { method: 'POST', body }),
+      reassign: (id: string, body: { toPersonId: string }) =>
+        http.request<StaffingRequirementView>(`/planner/assignments/${id}/reassign`, { method: 'POST', body }),
       remove: (id: string) => http.request<OkResponse>(`/planner/assignments/${id}`, { method: 'DELETE' }),
     },
     templates: {

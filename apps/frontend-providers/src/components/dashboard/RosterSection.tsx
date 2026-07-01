@@ -18,6 +18,7 @@ import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/form';
 import { RosterBuilderDrawer } from './RosterBuilderDrawer';
 import { RequirementAssignDrawer } from './RequirementAssignDrawer';
+import { RosterShiftPanel } from './RosterShiftPanel';
 
 type Tab = 'planner' | 'grid' | 'turnup';
 
@@ -516,6 +517,7 @@ function GridTab({ config }: { config: ResolvedConfig | null }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assignReq, setAssignReq] = useState<StaffingRequirementView | null>(null);
+  const [panelReq, setPanelReq] = useState<StaffingRequirementView | null>(null);
   const [search, setSearch] = useState('');
   const [teamId, setTeamId] = useState<string>('');
   const [location, setLocation] = useState<string>('');
@@ -559,8 +561,17 @@ function GridTab({ config }: { config: ResolvedConfig | null }) {
   const cols = `170px repeat(${days}, minmax(${days > 14 ? '84px' : '112px'}, 1fr))`;
   const openReq = (id: string) => {
     const r = reqMap.get(id);
-    if (r) setAssignReq(r);
+    if (r) setPanelReq(r);
   };
+  async function reassignTo(assignmentId: string, toPersonId: string) {
+    setError(null);
+    try {
+      await api.planner.assignments.reassign(assignmentId, { toPersonId });
+      await load();
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }
 
   const locations = useMemo(() => {
     const set = new Set<string>();
@@ -684,15 +695,25 @@ function GridTab({ config }: { config: ResolvedConfig | null }) {
                   {row.source ? <span className={cn('mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium', sourceTone[row.source])}>{sourceLabel[row.source]}</span> : null}
                 </div>
                 {week.days.map((d) => (
-                  <div key={d} className={cn('min-h-[52px] border-l border-[#F1F5F9] p-1', week.holidaysByDate[d] ? 'bg-[#FEF2F2]/40' : '')}>
+                  <div
+                    key={d}
+                    className={cn('min-h-[52px] border-l border-[#F1F5F9] p-1', week.holidaysByDate[d] ? 'bg-[#FEF2F2]/40' : '')}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      const aid = e.dataTransfer.getData('text/plain');
+                      if (aid && row.personId) reassignTo(aid, row.personId);
+                    }}
+                  >
                     {(row.cellsByDate[d] ?? []).filter(cellVisible).map((c) => (
                       <button
                         key={c.assignmentId}
                         type="button"
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('text/plain', c.assignmentId)}
                         onClick={() => openReq(c.requirementId)}
-                        className="relative mb-1 block w-full rounded-md border-l-[3px] bg-[#F8FAFC] px-1.5 py-1 text-left"
+                        className="relative mb-1 block w-full cursor-grab rounded-md border-l-[3px] bg-[#F8FAFC] px-1.5 py-1 text-left active:cursor-grabbing"
                         style={{ borderLeftColor: catColor(c.category) }}
-                        title={c.conflicts.map((k) => conflictShort[k] ?? k).join(' · ')}
+                        title={c.conflicts.length ? c.conflicts.map((k) => conflictShort[k] ?? k).join(' · ') : 'Drag to another worker to reassign'}
                       >
                         <span className="block truncate text-[11px] font-semibold text-[#1E293B]">{c.role}</span>
                         <span className="block text-[10px] text-[#64748B]">
@@ -745,6 +766,18 @@ function GridTab({ config }: { config: ResolvedConfig | null }) {
         </div>
       </Card>
 
+      {panelReq ? (
+        <RosterShiftPanel
+          requirement={reqMap.get(panelReq.id) ?? panelReq}
+          config={config}
+          onAssign={() => {
+            setAssignReq(reqMap.get(panelReq.id) ?? panelReq);
+            setPanelReq(null);
+          }}
+          onChanged={load}
+          onClose={() => setPanelReq(null)}
+        />
+      ) : null}
       {assignReq ? <RequirementAssignDrawer requirement={assignReq} onChanged={load} onClose={() => setAssignReq(null)} /> : null}
     </div>
   );
