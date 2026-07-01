@@ -19,8 +19,11 @@ import { errorMessage } from '@/lib/form';
 import { RosterBuilderDrawer } from './RosterBuilderDrawer';
 import { RequirementAssignDrawer } from './RequirementAssignDrawer';
 import { RosterShiftPanel } from './RosterShiftPanel';
+import { RosterDemandTab } from './RosterDemandTab';
+import { RosterClientsTab } from './RosterClientsTab';
+import { RosterStaffTab } from './RosterStaffTab';
 
-type Tab = 'planner' | 'grid' | 'turnup';
+type Tab = 'planner' | 'grid' | 'demand' | 'clients' | 'staff' | 'turnup';
 
 const respTone: Record<string, string> = {
   ACCEPTED: 'bg-[#DCFCE7] text-[#166534]',
@@ -48,8 +51,12 @@ const sourceLabel: Record<RosterSource, string> = {
 const TABS: { key: Tab; label: string }[] = [
   { key: 'planner', label: 'Planner' },
   { key: 'grid', label: 'Grid' },
+  { key: 'demand', label: 'Demand' },
+  { key: 'clients', label: 'Clients' },
+  { key: 'staff', label: 'Staff' },
   { key: 'turnup', label: "Who's Turning Up" },
 ];
+const TAB_KEYS: Tab[] = ['planner', 'grid', 'demand', 'clients', 'staff', 'turnup'];
 
 function dayLabel(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
@@ -75,7 +82,7 @@ function dShort(iso: string): string {
 
 export function RosterSection() {
   const tabParam = useSearchParams().get('tab');
-  const initial: Tab = tabParam === 'grid' ? 'grid' : tabParam === 'turnup' ? 'turnup' : 'planner';
+  const initial: Tab = (TAB_KEYS as string[]).includes(tabParam ?? '') ? (tabParam as Tab) : 'planner';
   const [tab, setTab] = useState<Tab>(initial);
   const [config, setConfig] = useState<ResolvedConfig | null>(null);
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -121,6 +128,9 @@ export function RosterSection() {
 
       {tab === 'planner' ? <PlannerTab config={config} /> : null}
       {tab === 'grid' ? <GridTab config={config} /> : null}
+      {tab === 'demand' ? <RosterDemandTab config={config} /> : null}
+      {tab === 'clients' ? <RosterClientsTab config={config} /> : null}
+      {tab === 'staff' ? <RosterStaffTab /> : null}
       {tab === 'turnup' ? <TurnUpTab /> : null}
 
       {builderOpen ? <RosterBuilderDrawer config={config} onChange={setConfig} onClose={() => setBuilderOpen(false)} /> : null}
@@ -136,6 +146,7 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [fillingAll, setFillingAll] = useState(false);
   const [assignReq, setAssignReq] = useState<StaffingRequirementView | null>(null);
   const [form, setForm] = useState({
     date: '',
@@ -188,6 +199,19 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
       await load();
     } catch (e) {
       setError(errorMessage(e));
+    }
+  }
+
+  async function fillAll() {
+    setFillingAll(true);
+    setError(null);
+    try {
+      for (const r of reqs) if (r.vacant > 0) await api.planner.requirements.autoFill(r.id);
+      await load();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setFillingAll(false);
     }
   }
 
@@ -246,6 +270,22 @@ function PlannerTab({ config }: { config: ResolvedConfig | null }) {
           <Stat label="On leave" value={summary.leave} />
           <Stat label="Hours" value={`${summary.hours}h`} />
         </div>
+      ) : null}
+
+      {summary && summary.vacant > 0 ? (
+        <Card className="flex flex-wrap items-center gap-3 border-l-4 p-4" style={{ borderLeftColor: 'var(--accent)' }}>
+          <span className="text-xl">🤖</span>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-[#1E293B]">AI recommendation</p>
+            <p className="text-xs text-[#64748B]">
+              {summary.vacant} vacanc{summary.vacant === 1 ? 'y' : 'ies'} · {summary.available} workers available
+              {summary.overtime > 0 ? ` · ${summary.overtime}h potential overtime` : ''}
+            </p>
+          </div>
+          <Button loading={fillingAll} onClick={fillAll}>
+            🤖 Fill Automatically
+          </Button>
+        </Card>
       ) : null}
 
       <Card className="p-5">

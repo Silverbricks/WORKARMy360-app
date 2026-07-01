@@ -21,6 +21,7 @@ import type {
   PlannerSummary,
   ResolvedConfig,
   RosterTemplateInput,
+  RosterStaffCard,
   RosterTemplateView,
   RosterWeek,
   StaffingRequirementInput,
@@ -115,6 +116,7 @@ export function createPlannerClient(http: HttpClient) {
       http.request<OpenShift[]>(`/planner/open-shifts${qs(q ?? {})}`),
     turnup: (q?: { from?: string; to?: string }) =>
       http.request<WhosTurningUpDay[]>(`/planner/turnup${qs(q ?? {})}`),
+    staff: (weekStart: string) => http.request<RosterStaffCard[]>(`/planner/staff${qs({ weekStart })}`),
     publishRange: (body: PlannerPublishRangeInput) =>
       http.request<OkResponse>('/planner/publish', { method: 'POST', body }),
   };

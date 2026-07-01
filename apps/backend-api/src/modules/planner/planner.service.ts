@@ -6,6 +6,7 @@ import type {
   PlannerCandidate,
   PlannerSummary,
   RosterAssignment,
+  RosterStaffCard,
   RosterGridRow,
   RosterLeaveCell,
   RosterOpenCell,
@@ -850,6 +851,61 @@ export class PlannerService {
         declined: assignments.filter((x) => ['DECLINED', 'NO_SHOW'].includes(x.status)).length,
         assignments,
       }));
+  }
+
+  /** Staff view — all active workers + their week rollup (hours/shifts/pay). */
+  async staffCards(userId: string, weekStart: string): Promise<RosterStaffCard[]> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const days = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
+    const workers = await this.prisma.orgWorker.findMany({
+      where: { orgId, active: true },
+      include: {
+        person: { select: { id: true, waId: true, firstName: true, lastName: true, profile: { select: { skills: true } } } },
+      },
+    });
+    const personIds = workers.map((w) => w.personId);
+    if (personIds.length === 0) return [];
+    const [reqAssigns, creds] = await Promise.all([
+      this.prisma.requirementAssignment.findMany({
+        where: { personId: { in: personIds }, status: { in: ACTIVE_ASSIGNMENT }, requirement: { orgId, date: { gte: days[0], lte: days[6] } } },
+        include: { requirement: { select: { startTime: true, endTime: true, payRate: true } } },
+      }),
+      this.prisma.credential.findMany({ where: { personId: { in: personIds } }, select: { personId: true, type: true, identifier: true } }),
+    ]);
+    const roll = new Map<string, { hours: number; shifts: number; estPay: number }>();
+    for (const a of reqAssigns) {
+      const h = shiftHours(a.requirement.startTime, a.requirement.endTime);
+      const r = roll.get(a.personId) ?? { hours: 0, shifts: 0, estPay: 0 };
+      r.hours += h;
+      r.shifts += 1;
+      r.estPay += (a.requirement.payRate ?? 0) * h;
+      roll.set(a.personId, r);
+    }
+    const visaBy = new Map<string, string>();
+    for (const c of creds) {
+      if (!c.personId) continue;
+      if (/visa|right.?to.?work/i.test(c.type)) visaBy.set(c.personId, c.identifier ?? c.type);
+    }
+    return workers
+      .map((w) => {
+        const p = w.person;
+        const r = roll.get(w.personId) ?? { hours: 0, shifts: 0, estPay: 0 };
+        const availability = w.urgentAvailable ? 'Urgent-ready' : w.onCall ? 'On-call' : w.availabilityNote ?? 'Available';
+        return {
+          personId: w.personId,
+          waId: p.waId,
+          name: nameOf(p),
+          source: w.source,
+          role: w.staffType ?? null,
+          skills: p.profile?.skills ?? null,
+          visa: visaBy.get(w.personId) ?? null,
+          hours: Math.round(r.hours),
+          shifts: r.shifts,
+          estPay: Math.round(r.estPay),
+          availability,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   private async notifyAssigned(personIds: string[], role: string, date: string): Promise<void> {
