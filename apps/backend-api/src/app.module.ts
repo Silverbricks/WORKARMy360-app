@@ -32,6 +32,7 @@ import { AccountsModule } from './modules/accounts/accounts.module';
 import { BusinessModule } from './modules/business/business.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { PlannerModule } from './modules/planner/planner.module';
+import { FormsModule } from './modules/forms/forms.module';
 import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
@@ -67,6 +68,7 @@ import { AdminModule } from './modules/admin/admin.module';
     BusinessModule,
     PlatformModule,
     PlannerModule,
+    FormsModule,
     AdminModule,
   ],
   providers: [

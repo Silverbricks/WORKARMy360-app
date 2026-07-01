@@ -23,6 +23,7 @@ import { createNetworkClient } from './endpoints/network';
 import { createAccountsClient } from './endpoints/accounts';
 import { createBusinessClient } from './endpoints/business';
 import { createPlannerClient } from './endpoints/planner';
+import { createFormsClient } from './endpoints/forms';
 import { createAdminClient } from './endpoints/admin';
 
 export type WorkArmyClientOptions = HttpClientOptions;
@@ -56,6 +57,7 @@ export function createClient(opts: WorkArmyClientOptions) {
     accounts: createAccountsClient(http),
     business: createBusinessClient(http),
     planner: createPlannerClient(http),
+    forms: createFormsClient(http),
     admin: createAdminClient(http),
   };
 }

@@ -19,6 +19,7 @@ import { BillingSection, BusinessCardSection, RequirementsSection } from './Busi
 import { ComplianceSection, DocumentsSection } from './ComplianceSections';
 import { SupportSection, FeedbackSection } from './SupportSections';
 import { StaffCalculatorSection, TeamAdminsSection } from './PolishSections';
+import { FormsSection } from './FormsSection';
 import { ComingSoonSection } from './ComingSoonSection';
 
 /**
@@ -89,6 +90,8 @@ export function DashboardSection({ slug }: { slug: string }) {
       return <StaffCalculatorSection />;
     case 'team-admins':
       return <TeamAdminsSection />;
+    case 'forms':
+      return <FormsSection />;
     default:
       return <ComingSoonSection slug={slug} />;
   }

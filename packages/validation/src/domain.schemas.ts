@@ -745,6 +745,27 @@ export type StaffingRequirementUpdateData = z.infer<typeof StaffingRequirementUp
 export type PlannerAssignData = z.infer<typeof PlannerAssignSchema>;
 export type PlannerRespondData = z.infer<typeof PlannerRespondSchema>;
 export type PlannerReassignData = z.infer<typeof PlannerReassignSchema>;
+
+// --- Form Builder ----------------------------------------------------------
+export const FormFieldSchema = z.object({
+  key: z.string().trim().min(1).max(40),
+  label: z.string().trim().min(1, 'Label is required').max(120),
+  type: z.enum(['text', 'textarea', 'number', 'date', 'dropdown', 'checkbox', 'currency']),
+  options: z.array(z.string().trim().max(80)).max(50).optional(),
+  required: z.coerce.boolean().optional(),
+});
+export const FormInputSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(120),
+  description: optionalText(500),
+  category: z.string().trim().min(1).max(40).optional(),
+  fields: z.array(FormFieldSchema).max(100),
+});
+export const FormSubmissionInputSchema = z.object({
+  data: z.record(z.unknown()),
+  contextLabel: optionalText(160),
+});
+export type FormInputData = z.infer<typeof FormInputSchema>;
+export type FormSubmissionInputData = z.infer<typeof FormSubmissionInputSchema>;
 export type PlannerCopyData = z.infer<typeof PlannerCopySchema>;
 export type PlannerRepeatData = z.infer<typeof PlannerRepeatSchema>;
 export type PlannerFromTemplateData = z.infer<typeof PlannerFromTemplateSchema>;

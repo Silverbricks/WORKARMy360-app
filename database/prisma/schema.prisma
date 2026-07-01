@@ -1960,3 +1960,52 @@ model RequirementAssignment {
   @@index([personId])
   @@map("requirement_assignments")
 }
+
+// ===========================================================================
+//  PLATFORM BUILDER — Form Builder (roadmap #1)
+//  Dynamic forms (inspections, incidents, checklists, reports) as config +
+//  their submissions. Field defs live in `fields` Json (FormFieldDef[]).
+// ===========================================================================
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model PlatformForm {
+  id          String      @id @default(uuid()) @db.Uuid
+  orgId       String      @map("org_id") @db.Uuid
+  scope       RosterScope @default(ORG)
+  scopeRefId  String?     @map("scope_ref_id") @db.Uuid
+  name        String
+  description String?
+  category    String      @default("general") // Inspection / Incident / Checklist / Report
+  fields      Json // FormFieldDef[]
+  status      FormStatus  @default(DRAFT)
+  version     Int         @default(1)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  submissions FormSubmission[]
+
+  @@index([orgId])
+  @@map("platform_forms")
+}
+
+model FormSubmission {
+  id                  String   @id @default(uuid()) @db.Uuid
+  orgId               String   @map("org_id") @db.Uuid
+  formId              String   @map("form_id") @db.Uuid
+  submittedByPersonId String?  @map("submitted_by_person_id") @db.Uuid
+  submitterName       String?  @map("submitter_name")
+  contextLabel        String?  @map("context_label")
+  data                Json // { [fieldKey]: value }
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  form PlatformForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([formId])
+  @@map("form_submissions")
+}
