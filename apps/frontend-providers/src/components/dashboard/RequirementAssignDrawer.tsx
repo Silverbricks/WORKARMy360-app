@@ -103,9 +103,9 @@ export function RequirementAssignDrawer({
     });
   }
 
-  async function assignList(list: PlannerCandidate[]) {
+  async function assignList(list: PlannerCandidate[], override = false) {
     for (const c of list) {
-      await api.planner.requirements.assign(requirement.id, { personId: c.personId, source: c.source });
+      await api.planner.requirements.assign(requirement.id, { personId: c.personId, source: c.source, override });
     }
   }
 
@@ -291,7 +291,7 @@ export function RequirementAssignDrawer({
             onAssign={async () => {
               const list = overlap;
               setOverlap(null);
-              await run(() => assignList(list));
+              await run(() => assignList(list, true));
             }}
           />
         ) : null}

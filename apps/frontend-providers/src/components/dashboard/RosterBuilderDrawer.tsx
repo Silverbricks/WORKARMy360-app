@@ -5,9 +5,12 @@ import type {
   ConfigCategory,
   ConfigField,
   ConfigGate,
+  ConfigRule,
   IndustryTemplateSummary,
   ModuleCatalogEntry,
   ResolvedConfig,
+  RuleKind,
+  WorkflowStep,
 } from '@workarmy/types';
 import { Alert, Button, Icon, Input, cn } from '@workarmy/ui';
 import { api } from '@/lib/api';
@@ -194,6 +197,16 @@ export function RosterBuilderDrawer({
           <Section title="Custom fields" hint="Extra fields captured on each requirement.">
             <FieldEditor fields={config?.fields ?? []} busy={busy} run={run} />
           </Section>
+
+          {/* Smart rules */}
+          <Section title="Smart rules" hint="When a condition is met, WARN or BLOCK the assignment.">
+            <RuleEditor rules={config?.rules ?? []} busy={busy} run={run} />
+          </Section>
+
+          {/* Approval workflow */}
+          <Section title="Approval workflow" hint="Steps a roster passes through before workers are notified.">
+            <WorkflowEditor steps={config?.workflow ?? []} busy={busy} run={run} />
+          </Section>
         </div>
       </aside>
     </div>
@@ -348,6 +361,118 @@ function FieldEditor({ fields, busy, run }: { fields: ConfigField[]; busy: strin
           Add
         </Button>
       </div>
+    </div>
+  );
+}
+
+const RULE_KINDS: { kind: RuleKind; label: string }[] = [
+  { kind: 'DOUBLE_BOOKED', label: 'Double-booked' },
+  { kind: 'ON_LEAVE', label: 'On approved leave' },
+  { kind: 'CREDENTIAL_EXPIRED', label: 'Compliance credential expired' },
+  { kind: 'OVER_HOURS', label: 'Over weekly hours' },
+  { kind: 'MISSING_CREDENTIAL', label: 'Must hold a credential' },
+];
+
+function RuleEditor({ rules, busy, run }: { rules: ConfigRule[]; busy: string | null; run: RunFn }) {
+  const [draftKind, setDraftKind] = useState<RuleKind>('OVER_HOURS');
+  const save = (r: ConfigRule) =>
+    run(`rule:${r.key}`, () =>
+      api.planner.config.setRule({ key: r.key, label: r.label, kind: r.kind, params: r.params ?? undefined, action: r.action, enabled: r.enabled }),
+    );
+  return (
+    <div className="space-y-2">
+      {rules.map((r) => (
+        <div key={r.key} className="rounded-lg border border-[#E5E7EB] p-2.5">
+          <div className="flex items-center gap-2">
+            <Pill on={r.enabled} />
+            <button type="button" className="flex-1 text-left text-sm text-[#1E293B]" onClick={() => save({ ...r, enabled: !r.enabled })}>
+              {r.label}
+            </button>
+            <button
+              type="button"
+              onClick={() => save({ ...r, action: r.action === 'WARN' ? 'BLOCK' : 'WARN' })}
+              className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', r.action === 'BLOCK' ? 'bg-[#FEE2E2] text-[#991B1B]' : 'bg-[#FEF3C7] text-[#92400E]')}
+            >
+              {r.action}
+            </button>
+            <button type="button" className="text-[#94A3B8] hover:text-[#B91C1C]" onClick={() => run(`ruledel:${r.key}`, () => api.planner.config.removeRule(r.key))}>
+              <Icon name="trash" size={15} />
+            </button>
+          </div>
+          {r.kind === 'OVER_HOURS' ? (
+            <div className="mt-2 flex items-center gap-2 text-xs text-[#64748B]">
+              Max hours / week
+              <Input
+                type="number"
+                defaultValue={r.params?.maxHours ?? 38}
+                className="w-20"
+                onBlur={(e) => {
+                  const maxHours = Number(e.target.value) || 38;
+                  if (maxHours !== (r.params?.maxHours ?? 38)) save({ ...r, params: { ...r.params, maxHours } });
+                }}
+              />
+            </div>
+          ) : null}
+          {r.kind === 'MISSING_CREDENTIAL' ? (
+            <div className="mt-2 flex items-center gap-2 text-xs text-[#64748B]">
+              Credential type
+              <Input
+                defaultValue={r.params?.credentialType ?? ''}
+                placeholder="e.g. white-card"
+                className="flex-1"
+                onBlur={(e) => {
+                  const credentialType = e.target.value.trim();
+                  if (credentialType && credentialType !== (r.params?.credentialType ?? '')) save({ ...r, params: { ...r.params, credentialType } });
+                }}
+              />
+            </div>
+          ) : null}
+        </div>
+      ))}
+      <div className="flex items-center gap-2 pt-1">
+        <select value={draftKind} onChange={(e) => setDraftKind(e.target.value as RuleKind)} className="flex-1 rounded-lg border border-[#E5E7EB] px-2 py-2 text-sm">
+          {RULE_KINDS.map((k) => (
+            <option key={k.kind} value={k.kind}>
+              {k.label}
+            </option>
+          ))}
+        </select>
+        <Button
+          size="sm"
+          variant="secondary"
+          loading={busy === 'rule:new'}
+          onClick={() => {
+            const meta = RULE_KINDS.find((k) => k.kind === draftKind)!;
+            const key = `${draftKind.toLowerCase()}-${Date.now() % 10000}`;
+            const params = draftKind === 'OVER_HOURS' ? { maxHours: 38 } : undefined;
+            run('rule:new', () => api.planner.config.setRule({ key, label: meta.label, kind: draftKind, params, action: 'WARN', enabled: true }));
+          }}
+        >
+          Add rule
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function WorkflowEditor({ steps, busy, run }: { steps: WorkflowStep[]; busy: string | null; run: RunFn }) {
+  const toggle = (i: number) => {
+    const next = steps.map((s, idx) => (idx === i ? { ...s, enabled: !s.enabled } : s));
+    run('workflow', () => api.planner.config.setWorkflow({ steps: next }));
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {steps.map((s, i) => (
+        <button
+          key={s.key}
+          type="button"
+          disabled={busy !== null}
+          onClick={() => toggle(i)}
+          className={cn('rounded-lg border px-2.5 py-1 text-xs font-medium', s.enabled ? 'border-[color:var(--accent)] text-[color:var(--accent)]' : 'border-[#E5E7EB] text-[#94A3B8] line-through')}
+        >
+          {s.label}
+        </button>
+      ))}
     </div>
   );
 }

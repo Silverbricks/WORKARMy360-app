@@ -5,7 +5,9 @@ import {
   ConfigFieldSchema,
   ConfigGateSchema,
   ConfigGeneralSchema,
+  ConfigRuleSchema,
   ConfigTermSchema,
+  ConfigWorkflowSchema,
   ModuleToggleSchema,
   PlannerAssignSchema,
   PlannerCascadeSchema,
@@ -23,7 +25,9 @@ import {
   type ConfigFieldData,
   type ConfigGateData,
   type ConfigGeneralData,
+  type ConfigRuleData,
   type ConfigTermData,
+  type ConfigWorkflowData,
   type ModuleToggleData,
   type PlannerAssignData,
   type PlannerCascadeData,
@@ -134,6 +138,21 @@ export class PlannerController {
   @Delete('planner/config/field/:key')
   removeField(@CurrentUser() user: { sub: string }, @Param('key') key: string) {
     return this.config.removeField(user.sub, key);
+  }
+
+  @Patch('planner/config/rule')
+  setRule(@CurrentUser() user: { sub: string }, @Body(new ZodValidationPipe(ConfigRuleSchema)) body: ConfigRuleData) {
+    return this.config.setRule(user.sub, body);
+  }
+
+  @Delete('planner/config/rule/:key')
+  removeRule(@CurrentUser() user: { sub: string }, @Param('key') key: string) {
+    return this.config.removeRule(user.sub, key);
+  }
+
+  @Patch('planner/config/workflow')
+  setWorkflow(@CurrentUser() user: { sub: string }, @Body(new ZodValidationPipe(ConfigWorkflowSchema)) body: ConfigWorkflowData) {
+    return this.config.setWorkflow(user.sub, body);
   }
 
   // ---- Templates (saved shift templates) ----

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ConfigGate, Conflict } from '@workarmy/types';
+import type { ConfigGate, ConfigRule, Conflict } from '@workarmy/types';
 import { shiftHours } from './planner.service';
 
 export const OVERTIME_THRESHOLD_HOURS = 38;
@@ -53,6 +53,8 @@ export interface CandidateContext {
   start: string;
   end: string;
   gates: ConfigGate[];
+  /** The org's effective rules (from the Rule Builder, or defaults). */
+  rules: ConfigRule[];
   personName: string;
   /** Active assignments the person already holds on `date` (req + legacy shift). */
   busyIntervals: { start: string; end: string }[];
@@ -88,27 +90,41 @@ const DEFAULT_WEIGHTS = { skills: 35, location: 20, availability: 20, urgency: 1
 export class PlannerConflictService {
   conflicts(ctx: CandidateContext): Conflict[] {
     const out: Conflict[] = [];
+    const reqDay = new Date(`${ctx.date}T00:00:00Z`).getTime();
+    const shiftH = shiftHours(ctx.start, ctx.end);
 
-    if (ctx.busyIntervals.some((iv) => overlaps(ctx.start, ctx.end, iv.start, iv.end))) {
-      out.push({ kind: 'DOUBLE_BOOKED', severity: 'WARN', message: 'Already rostered at an overlapping time.' });
-    }
-
-    if (ctx.leaves.some((l) => nameMatch(l.personName, ctx.personName) && ctx.date >= l.startDate && ctx.date <= l.endDate)) {
-      out.push({ kind: 'ON_LEAVE', severity: 'WARN', message: 'On approved leave on this date.' });
-    }
-
+    const overlap = () => ctx.busyIntervals.some((iv) => overlaps(ctx.start, ctx.end, iv.start, iv.end));
+    const onLeave = () => ctx.leaves.some((l) => nameMatch(l.personName, ctx.personName) && ctx.date >= l.startDate && ctx.date <= l.endDate);
     const gateTypes = new Set(ctx.gates.map((g) => g.credentialType));
-    const reqDay = new Date(`${ctx.date}T00:00:00Z`);
-    for (const c of ctx.credentials) {
-      if (gateTypes.has(c.type) && c.expiresAt && c.expiresAt.getTime() < reqDay.getTime()) {
-        out.push({ kind: 'CREDENTIAL_EXPIRED', severity: 'WARN', message: `${c.type} expired.` });
+    const expiredGate = () => ctx.credentials.find((c) => gateTypes.has(c.type) && c.expiresAt && c.expiresAt.getTime() < reqDay);
+    const holds = (type: string) => ctx.credentials.some((c) => c.type === type && (!c.expiresAt || c.expiresAt.getTime() >= reqDay));
+
+    for (const rule of ctx.rules) {
+      if (rule.enabled === false) continue;
+      switch (rule.kind) {
+        case 'DOUBLE_BOOKED':
+          if (overlap()) out.push({ kind: 'DOUBLE_BOOKED', severity: rule.action, message: 'Already rostered at an overlapping time.' });
+          break;
+        case 'ON_LEAVE':
+          if (onLeave()) out.push({ kind: 'ON_LEAVE', severity: rule.action, message: 'On approved leave on this date.' });
+          break;
+        case 'CREDENTIAL_EXPIRED': {
+          const c = expiredGate();
+          if (c) out.push({ kind: 'CREDENTIAL_EXPIRED', severity: rule.action, message: `${c.type} expired.` });
+          break;
+        }
+        case 'MISSING_CREDENTIAL': {
+          const t = rule.params?.credentialType;
+          if (t && !holds(t)) out.push({ kind: 'CREDENTIAL_EXPIRED', severity: rule.action, message: `Missing ${t}.` });
+          break;
+        }
+        case 'OVER_HOURS': {
+          const max = rule.params?.maxHours ?? OVERTIME_THRESHOLD_HOURS;
+          if (ctx.weekHours + shiftH > max) out.push({ kind: 'OVER_HOURS', severity: rule.action, message: `Over ${max}h this week.` });
+          break;
+        }
       }
     }
-
-    if (ctx.weekHours + shiftHours(ctx.start, ctx.end) > OVERTIME_THRESHOLD_HOURS) {
-      out.push({ kind: 'OVER_HOURS', severity: 'WARN', message: `Over ${OVERTIME_THRESHOLD_HOURS}h this week.` });
-    }
-
     return out;
   }
 

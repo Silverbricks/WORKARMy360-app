@@ -2009,3 +2009,48 @@ model FormSubmission {
   @@index([formId])
   @@map("form_submissions")
 }
+
+// ===========================================================================
+//  PLATFORM BUILDER — Workflow + Rule Builder (roadmap #2)
+//  No-code IF/THEN rules that the roster conflict engine reads (and enforce
+//  BLOCK on assignment), plus an editable approval-chain (steps as config).
+// ===========================================================================
+
+enum RuleAction {
+  WARN
+  BLOCK
+}
+
+model PlatformRule {
+  id         String      @id @default(uuid()) @db.Uuid
+  orgId      String      @map("org_id") @db.Uuid
+  scope      RosterScope @default(ORG)
+  scopeRefId String?     @map("scope_ref_id") @db.Uuid
+  key        String
+  label      String
+  kind       String // DOUBLE_BOOKED | ON_LEAVE | OVER_HOURS | CREDENTIAL_EXPIRED | MISSING_CREDENTIAL
+  params     Json? // { maxHours?, credentialType? }
+  action     RuleAction  @default(WARN)
+  enabled    Boolean     @default(true)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  @@unique([orgId, scope, scopeRefId, key])
+  @@index([orgId])
+  @@map("platform_rules")
+}
+
+model PlatformWorkflow {
+  id         String      @id @default(uuid()) @db.Uuid
+  orgId      String      @map("org_id") @db.Uuid
+  scope      RosterScope @default(ORG)
+  scopeRefId String?     @map("scope_ref_id") @db.Uuid
+  steps      Json // WorkflowStep[]: { key, label, enabled }
+  version    Int         @default(1)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  @@unique([orgId, scope, scopeRefId])
+  @@index([orgId])
+  @@map("platform_workflows")
+}

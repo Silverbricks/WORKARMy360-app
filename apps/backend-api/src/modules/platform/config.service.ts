@@ -1,19 +1,25 @@
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@workarmy/database';
 import type {
   ConfigCategory,
   ConfigField,
   ConfigGate,
   ConfigModule,
+  ConfigRule,
   IndustryTemplateSummary,
   ModuleCatalogEntry,
   ResolvedConfig,
+  RuleKind,
+  WorkflowStep,
 } from '@workarmy/types';
 import type {
   ConfigCategoryData,
   ConfigFieldData,
   ConfigGateData,
   ConfigGeneralData,
+  ConfigRuleData,
   ConfigTermData,
+  ConfigWorkflowData,
   ModuleToggleData,
 } from '@workarmy/validation';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -24,6 +30,21 @@ import { catalogEntry, MODULE_CATALOG, withDependencies } from './module-catalog
 import { DEFAULT_TEMPLATE_KEY, industryTemplate, INDUSTRY_TEMPLATES } from './industry-templates';
 
 const ORG_SCOPE = { scope: 'ORG' as const, scopeRefId: null };
+
+/** The default rule set (the built-in conflict checks) when none are configured. */
+const DEFAULT_RULES: ConfigRule[] = [
+  { key: 'double-booked', label: 'Double-booked', kind: 'DOUBLE_BOOKED', params: null, action: 'WARN', enabled: true },
+  { key: 'on-leave', label: 'On approved leave', kind: 'ON_LEAVE', params: null, action: 'WARN', enabled: true },
+  { key: 'credential-expired', label: 'Compliance credential expired', kind: 'CREDENTIAL_EXPIRED', params: null, action: 'WARN', enabled: true },
+  { key: 'over-hours', label: 'Over weekly hours', kind: 'OVER_HOURS', params: { maxHours: 38 }, action: 'WARN', enabled: true },
+];
+const DEFAULT_WORKFLOW: WorkflowStep[] = [
+  { key: 'draft', label: 'Draft', enabled: true },
+  { key: 'supervisor', label: 'Supervisor review', enabled: false },
+  { key: 'manager', label: 'Manager approval', enabled: false },
+  { key: 'publish', label: 'Publish', enabled: true },
+  { key: 'accept', label: 'Worker accept', enabled: true },
+];
 
 /**
  * Company Builder config service (Roster Builder in v1). The metadata substrate
@@ -66,13 +87,15 @@ export class ConfigService {
    *  (or `general`) for any builder that has no stored rows yet. */
   async resolve(orgId: string): Promise<ResolvedConfig> {
     const where = { orgId, ...ORG_SCOPE };
-    const [config, modules, terms, categories, gates, fields] = await this.prisma.$transaction([
+    const [config, modules, terms, categories, gates, fields, ruleRows, workflowRow] = await this.prisma.$transaction([
       this.prisma.platformConfig.findFirst({ where }),
       this.prisma.platformModule.findMany({ where, orderBy: { key: 'asc' } }),
       this.prisma.platformTerm.findMany({ where }),
       this.prisma.platformCategory.findMany({ where, orderBy: { order: 'asc' } }),
       this.prisma.platformGate.findMany({ where, orderBy: { key: 'asc' } }),
       this.prisma.platformField.findMany({ where, orderBy: { order: 'asc' } }),
+      this.prisma.platformRule.findMany({ where, orderBy: { key: 'asc' } }),
+      this.prisma.platformWorkflow.findFirst({ where }),
     ]);
 
     const tpl = industryTemplate(config?.templateKey ?? DEFAULT_TEMPLATE_KEY) ?? industryTemplate(DEFAULT_TEMPLATE_KEY)!;
@@ -102,6 +125,18 @@ export class ConfigService {
       order: f.order,
     }));
 
+    const rules: ConfigRule[] = ruleRows.length
+      ? ruleRows.map((r) => ({
+          key: r.key,
+          label: r.label,
+          kind: r.kind as RuleKind,
+          params: (r.params as ConfigRule['params']) ?? null,
+          action: r.action,
+          enabled: r.enabled,
+        }))
+      : DEFAULT_RULES;
+    const workflow: WorkflowStep[] = (workflowRow?.steps as WorkflowStep[] | undefined) ?? DEFAULT_WORKFLOW;
+
     return {
       scope: 'ORG',
       templateKey: config?.templateKey ?? null,
@@ -112,6 +147,8 @@ export class ConfigService {
       categories: categoryList,
       gates: gateList,
       fields: fieldList,
+      rules,
+      workflow,
     };
   }
 
@@ -295,6 +332,60 @@ export class ConfigService {
     const { orgId } = await this.membership.requireOrg(userId);
     await this.prisma.platformField.deleteMany({ where: { orgId, ...ORG_SCOPE, key } });
     return this.recordAndResolve(userId, orgId, 'field-remove', { key });
+  }
+
+  // ---- Rule + Workflow Builder ---------------------------------------------
+
+  async setRule(userId: string, body: ConfigRuleData): Promise<ResolvedConfig> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    await this.materializeRules(orgId);
+    const base = { orgId, ...ORG_SCOPE };
+    const data = {
+      label: body.label,
+      kind: body.kind,
+      params: (body.params ?? undefined) as Prisma.InputJsonValue | undefined,
+      action: body.action ?? 'WARN',
+      enabled: body.enabled ?? true,
+    };
+    const existing = await this.prisma.platformRule.findFirst({ where: { ...base, key: body.key } });
+    if (existing) await this.prisma.platformRule.update({ where: { id: existing.id }, data });
+    else await this.prisma.platformRule.create({ data: { ...base, key: body.key, ...data } });
+    return this.recordAndResolve(userId, orgId, 'rule', { key: body.key });
+  }
+
+  async removeRule(userId: string, key: string): Promise<ResolvedConfig> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    await this.materializeRules(orgId);
+    await this.prisma.platformRule.deleteMany({ where: { orgId, ...ORG_SCOPE, key } });
+    return this.recordAndResolve(userId, orgId, 'rule-remove', { key });
+  }
+
+  async setWorkflow(userId: string, body: ConfigWorkflowData): Promise<ResolvedConfig> {
+    const { orgId } = await this.membership.requireOrg(userId);
+    const base = { orgId, ...ORG_SCOPE };
+    const steps = body.steps as unknown as Prisma.InputJsonValue;
+    const existing = await this.prisma.platformWorkflow.findFirst({ where: base });
+    if (existing) await this.prisma.platformWorkflow.update({ where: { id: existing.id }, data: { steps, version: { increment: 1 } } });
+    else await this.prisma.platformWorkflow.create({ data: { ...base, steps } });
+    return this.recordAndResolve(userId, orgId, 'workflow');
+  }
+
+  /** Seed the default rules into rows the first time a rule is edited. */
+  private async materializeRules(orgId: string): Promise<void> {
+    const base = { orgId, ...ORG_SCOPE };
+    const count = await this.prisma.platformRule.count({ where: base });
+    if (count) return;
+    await this.prisma.platformRule.createMany({
+      data: DEFAULT_RULES.map((r) => ({
+        ...base,
+        key: r.key,
+        label: r.label,
+        kind: r.kind,
+        params: (r.params ?? undefined) as Prisma.InputJsonValue | undefined,
+        action: r.action,
+        enabled: r.enabled,
+      })),
+    });
   }
 
   // ---- helpers -------------------------------------------------------------

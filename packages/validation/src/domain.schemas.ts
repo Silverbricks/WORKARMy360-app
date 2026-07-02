@@ -713,6 +713,20 @@ export const PlannerAssignSchema = z.object({
   waId: z.string().trim().min(3).max(20).optional(),
   personId: z.string().uuid().optional(),
   source: z.enum(['COMPANY', 'CONTRACTOR', 'AGENCY', 'SOLE_TRADER', 'NEARBY']).optional(),
+  override: z.coerce.boolean().optional(),
+});
+export const ConfigRuleSchema = z.object({
+  key: z.string().trim().min(1).max(40),
+  label: z.string().trim().min(1).max(80),
+  kind: z.enum(['DOUBLE_BOOKED', 'ON_LEAVE', 'OVER_HOURS', 'CREDENTIAL_EXPIRED', 'MISSING_CREDENTIAL']),
+  params: z.object({ maxHours: z.coerce.number().int().min(1).max(168).optional(), credentialType: z.string().trim().max(60).optional() }).optional(),
+  action: z.enum(['WARN', 'BLOCK']).optional(),
+  enabled: z.coerce.boolean().optional(),
+});
+export const ConfigWorkflowSchema = z.object({
+  steps: z
+    .array(z.object({ key: z.string().trim().min(1).max(40), label: z.string().trim().min(1).max(60), enabled: z.coerce.boolean() }))
+    .max(20),
 });
 export const PlannerRespondSchema = z.object({
   response: z.enum(['ACCEPTED', 'DECLINED', 'CONFIRMED']),
@@ -745,6 +759,8 @@ export type StaffingRequirementUpdateData = z.infer<typeof StaffingRequirementUp
 export type PlannerAssignData = z.infer<typeof PlannerAssignSchema>;
 export type PlannerRespondData = z.infer<typeof PlannerRespondSchema>;
 export type PlannerReassignData = z.infer<typeof PlannerReassignSchema>;
+export type ConfigRuleData = z.infer<typeof ConfigRuleSchema>;
+export type ConfigWorkflowData = z.infer<typeof ConfigWorkflowSchema>;
 
 // --- Form Builder ----------------------------------------------------------
 export const FormFieldSchema = z.object({

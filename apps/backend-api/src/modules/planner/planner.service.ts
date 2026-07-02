@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { AssignmentStatus, DispatchChannel, Prisma } from '@workarmy/database';
 import type {
+  Conflict,
   MarketplaceShift,
   MyShiftView,
   OkResponse,
@@ -154,17 +155,49 @@ export class PlannerService {
 
   async assign(userId: string, id: string, body: PlannerAssignData): Promise<StaffingRequirementView> {
     const { orgId } = await this.membership.requireOrg(userId);
-    await this.requireReq(orgId, id);
+    const req = await this.prisma.staffingRequirement.findFirst({ where: { id, orgId } });
+    if (!req) throw ApiException.notFound('Requirement not found.');
     const person = body.personId
       ? await this.personById(body.personId)
       : await this.personByWaId(body.waId ?? '');
     const source = body.source ?? (await this.inferSource(orgId, person.id));
+    // Rule Builder: a BLOCK rule refuses assignment unless explicitly overridden.
+    if (!body.override) {
+      const name = nameOf({ firstName: person.firstName, lastName: person.lastName, waId: person.waId });
+      const blocks = (await this.personConflicts(orgId, person.id, name, req)).filter((c) => c.severity === 'BLOCK');
+      if (blocks.length) {
+        throw ApiException.badRequest('VALIDATION_ERROR', `Blocked: ${blocks.map((b) => b.message).join(' ')} Override to assign anyway.`);
+      }
+    }
     await this.prisma.requirementAssignment.upsert({
       where: { requirementId_personId: { requirementId: id, personId: person.id } },
       update: { status: 'ASSIGNED', source },
       create: { requirementId: id, personId: person.id, source, status: 'ASSIGNED' },
     });
     return this.view(orgId, id);
+  }
+
+  private async personConflicts(
+    orgId: string,
+    personId: string,
+    name: string,
+    req: { id: string; date: string; startTime: string; endTime: string },
+  ): Promise<Conflict[]> {
+    const config = await this.config.resolve(orgId);
+    const ctx = await this.loadConflictData(orgId, [personId]);
+    const { busy, weekHours } = busyAndWeekHours(ctx.assignmentsBy.get(personId) ?? [], req.date, req.id);
+    return this.conflict.conflicts({
+      date: req.date,
+      start: req.startTime,
+      end: req.endTime,
+      gates: config.gates,
+      rules: config.rules,
+      personName: name,
+      busyIntervals: busy,
+      leaves: ctx.leaves,
+      credentials: ctx.credsBy.get(personId) ?? [],
+      weekHours,
+    });
   }
 
   async unassign(userId: string, assignmentId: string): Promise<OkResponse> {
@@ -342,6 +375,7 @@ export class PlannerService {
         start: req.startTime,
         end: req.endTime,
         gates: config.gates,
+        rules: config.rules,
         personName: name,
         busyIntervals: busy,
         leaves: ctx.leaves,
@@ -813,6 +847,7 @@ export class PlannerService {
             start: r.startTime,
             end: r.endTime,
             gates: config.gates,
+            rules: config.rules,
             personName: name,
             busyIntervals: busy,
             leaves: ctx.leaves,

@@ -4,7 +4,9 @@ import type {
   ConfigFieldInput,
   ConfigGateInput,
   ConfigGeneralInput,
+  ConfigRuleInput,
   ConfigTermInput,
+  ConfigWorkflowInput,
   IndustryTemplateSummary,
   MarketplaceShift,
   ModuleCatalogEntry,
@@ -70,6 +72,12 @@ export function createPlannerClient(http: HttpClient) {
         http.request<ResolvedConfig>('/planner/config/field', { method: 'PATCH', body }),
       removeField: (key: string) =>
         http.request<ResolvedConfig>(`/planner/config/field/${key}`, { method: 'DELETE' }),
+      setRule: (body: ConfigRuleInput) =>
+        http.request<ResolvedConfig>('/planner/config/rule', { method: 'PATCH', body }),
+      removeRule: (key: string) =>
+        http.request<ResolvedConfig>(`/planner/config/rule/${key}`, { method: 'DELETE' }),
+      setWorkflow: (body: ConfigWorkflowInput) =>
+        http.request<ResolvedConfig>('/planner/config/workflow', { method: 'PATCH', body }),
     },
     requirements: {
       list: (q?: { from?: string; to?: string }) =>

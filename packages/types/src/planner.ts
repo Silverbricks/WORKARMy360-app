@@ -91,6 +91,22 @@ export interface ConfigField {
   required: boolean;
   order: number;
 }
+export type RuleAction = 'WARN' | 'BLOCK';
+export type RuleKind = 'DOUBLE_BOOKED' | 'ON_LEAVE' | 'OVER_HOURS' | 'CREDENTIAL_EXPIRED' | 'MISSING_CREDENTIAL';
+export interface ConfigRule {
+  key: string;
+  label: string;
+  kind: RuleKind;
+  params: { maxHours?: number; credentialType?: string } | null;
+  action: RuleAction;
+  enabled: boolean;
+}
+export interface WorkflowStep {
+  key: string;
+  label: string;
+  enabled: boolean;
+}
+
 export interface ResolvedConfig {
   scope: RosterScope;
   templateKey: string | null;
@@ -102,6 +118,8 @@ export interface ResolvedConfig {
   categories: ConfigCategory[];
   gates: ConfigGate[];
   fields: ConfigField[];
+  rules: ConfigRule[];
+  workflow: WorkflowStep[];
 }
 
 // --- Roster templates ------------------------------------------------------
@@ -379,6 +397,18 @@ export interface PlannerAssignInput {
   waId?: string;
   personId?: string;
   source?: RosterSource;
+  override?: boolean;
+}
+export interface ConfigRuleInput {
+  key: string;
+  label: string;
+  kind: RuleKind;
+  params?: { maxHours?: number; credentialType?: string };
+  action?: RuleAction;
+  enabled?: boolean;
+}
+export interface ConfigWorkflowInput {
+  steps: WorkflowStep[];
 }
 export interface PlannerRespondInput {
   response: 'ACCEPTED' | 'DECLINED' | 'CONFIRMED';
